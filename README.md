@@ -1,4 +1,4 @@
-# AIDucation v1.4
+# AIDucation v0.4
 
 AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동으로 퀴즈를 생성하고, 학습 진도를 추적합니다.
 
