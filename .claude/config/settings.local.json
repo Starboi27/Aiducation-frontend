@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-scripts:*)",
+      "Bash(git add .)",
+      "Bash(python3 .claude/evals/engines/ui_audit.py)",
+      "Bash(python3 .claude/evals/engines/harness.py)",
+      "Bash(npm start)",
+      "Bash(npm run build)",
+      "Bash(npx eslint src --ext .js,.jsx)",
+      "Bash(npx prettier --check src)"
+    ]
+  }
+}

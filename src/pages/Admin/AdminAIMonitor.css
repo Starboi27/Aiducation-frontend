@@ -1,0 +1,101 @@
+.ai-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-dot.mock {
+  background-color: #f1c40f;
+  box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+}
+
+.status-dot.real {
+  background-color: #2ecc71;
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+}
+
+.status-text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.ai-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.config-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.config-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.config-item .label {
+  color: #666;
+  font-weight: 500;
+}
+
+.config-item .value {
+  color: #333;
+  font-weight: 700;
+}
+
+.ai-usage-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.status-badge.success {
+  background-color: #eafaf1;
+  color: #2ecc71;
+}
+
+.status-badge.error {
+  background-color: #fdedec;
+  color: #e74c3c;
+}
+
+.prompt-content {
+  background-color: #2d3436;
+  color: #dfe6e9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}

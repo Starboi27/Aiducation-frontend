@@ -1,0 +1,52 @@
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-dot {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  writing-mode: horizontal-tb;
+  white-space: nowrap;
+  width: auto;
+  height: auto;
+}
+
+.status-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  color: #2ecc71;
+}
+
+.status-dot.active::before {
+  background-color: #2ecc71;
+}
+
+.status-dot.inactive {
+  color: #95a5a6;
+}
+
+.status-dot.inactive::before {
+  background-color: #95a5a6;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}

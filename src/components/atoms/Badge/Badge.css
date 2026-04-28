@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  border-radius: var(--border-radius-full);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.badge--sm { padding: 2px 8px; font-size: 10px; }
+.badge--md { padding: 4px 12px; font-size: 11px; }
+.badge--lg { padding: 6px 16px; font-size: 13px; }
+
+.badge--default { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.badge--primary { background: rgba(108, 92, 231, 0.2); color: var(--color-primary-light); border: 1px solid rgba(108,92,231,0.3); }
+.badge--success { background: rgba(0, 184, 148, 0.15); color: #00d4a8; border: 1px solid rgba(0,184,148,0.3); }
+.badge--warning { background: rgba(253, 203, 110, 0.15); color: var(--color-gold); border: 1px solid rgba(253,203,110,0.3); }
+.badge--danger { background: rgba(214, 48, 49, 0.15); color: #ff6b6b; border: 1px solid rgba(214,48,49,0.3); }
+.badge--info { background: rgba(9, 132, 227, 0.15); color: #74b9ff; border: 1px solid rgba(9,132,227,0.3); }
+.badge--accent { background: rgba(253, 121, 168, 0.15); color: var(--color-accent); border: 1px solid rgba(253,121,168,0.3); }
+
+/* Rank Tiers */
+.badge--bronze { background: rgba(205,127,50,0.15); color: var(--exp-bronze); border: 1px solid rgba(205,127,50,0.3); }
+.badge--silver { background: rgba(192,192,192,0.15); color: var(--exp-silver); border: 1px solid rgba(192,192,192,0.3); }
+.badge--gold { background: rgba(255,215,0,0.15); color: var(--exp-gold); border: 1px solid rgba(255,215,0,0.3); }
+.badge--platinum { background: rgba(0,180,216,0.15); color: var(--exp-platinum); border: 1px solid rgba(0,180,216,0.3); }
+.badge--diamond { background: rgba(162,155,254,0.15); color: var(--exp-diamond); border: 1px solid rgba(162,155,254,0.3); }
+
+.badge--glow { box-shadow: 0 0 10px currentColor; }

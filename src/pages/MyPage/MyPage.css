@@ -1,0 +1,602 @@
+/* ═══════════════════════════════════════════
+   MyPage — 마이페이지 스타일
+   ═══════════════════════════════════════════ */
+
+.mypage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* ── 프로필 히어로 ── */
+.mypage__hero {
+  position: relative;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+.mypage__hero-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(108, 92, 231, 0.25) 0%,
+    rgba(0, 206, 201, 0.15) 50%,
+    rgba(253, 121, 168, 0.1) 100%
+  );
+  z-index: 0;
+}
+
+.mypage__hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+}
+
+.mypage__avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mypage__avatar-edit {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-full);
+  background: var(--color-primary);
+  border: 2px solid var(--bg-card);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+.mypage__avatar-edit:hover {
+  transform: scale(1.1);
+  background: var(--color-primary-dark);
+}
+
+.mypage__hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage__name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.mypage__name {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mypage__level {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.mypage__hero-meta {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.mypage__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.mypage__meta-item svg {
+  color: var(--color-primary-light);
+}
+
+.mypage__hero-actions {
+  flex-shrink: 0;
+}
+
+/* ── 핵심 스탯 그리드 ── */
+.mypage__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.mypage__stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.mypage__stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.mypage__stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--stat-color) 15%, transparent);
+  color: var(--stat-color);
+  flex-shrink: 0;
+}
+
+.mypage__stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.mypage__stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.mypage__stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* ── 메인 그리드 ── */
+.mypage__main-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--spacing-xl);
+}
+
+@media (max-width: 1100px) {
+  .mypage__main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mypage__col-left,
+.mypage__col-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* ── 히트맵 ── */
+.mypage__heatmap {
+  display: flex;
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-sm);
+}
+
+.mypage__heatmap-days {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 0;
+}
+
+.mypage__heatmap-day-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  height: 14px;
+  line-height: 14px;
+  text-align: right;
+  width: 16px;
+}
+
+.mypage__heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  grid-auto-flow: column;
+  grid-auto-columns: 14px;
+  gap: 3px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.mypage__heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  transition: transform var(--transition-fast);
+}
+.mypage__heatmap-cell:hover {
+  transform: scale(1.3);
+}
+
+.mypage__heatmap-cell--0 { background: rgba(255, 255, 255, 0.05); }
+.mypage__heatmap-cell--1 { background: rgba(108, 92, 231, 0.25); }
+.mypage__heatmap-cell--2 { background: rgba(108, 92, 231, 0.45); }
+.mypage__heatmap-cell--3 { background: rgba(108, 92, 231, 0.7); }
+.mypage__heatmap-cell--4 { background: var(--color-primary); box-shadow: 0 0 6px rgba(108, 92, 231, 0.4); }
+
+.mypage__heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: var(--spacing-sm);
+  position: absolute;
+  bottom: var(--spacing-md);
+  right: var(--spacing-lg);
+}
+
+/* legend를 Card 안에 배치하기 위해 부모 Card에 relative 필요 */
+.mypage__col-left .card:nth-child(2) {
+  position: relative;
+  padding-bottom: 48px;
+}
+
+.mypage__heatmap-legend-text {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* ── 업적 ── */
+.mypage__achievements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.mypage__achievement {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  transition: background var(--transition-fast);
+}
+.mypage__achievement:hover {
+  background: var(--bg-card-hover);
+}
+
+.mypage__achievement--locked {
+  opacity: 0.35;
+}
+
+.mypage__achievement-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mypage__achievement--unlocked .mypage__achievement-icon {
+  background: rgba(108, 92, 231, 0.15);
+  color: var(--color-primary-light);
+}
+.mypage__achievement--locked .mypage__achievement-icon {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-tertiary);
+}
+
+.mypage__achievement-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage__achievement-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mypage__achievement-desc {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.mypage__achievement-check {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+/* ── 오늘의 목표 (프로그레스 링) ── */
+.mypage__goal {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-sm) 0;
+}
+
+.mypage__goal-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.mypage__goal-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.mypage__goal-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 8;
+}
+
+.mypage__goal-progress {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 326.73;
+  stroke-dashoffset: calc(326.73 - (326.73 * var(--goal-percent) / 100));
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px rgba(108, 92, 231, 0.5));
+}
+
+.mypage__goal-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.mypage__goal-percent {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mypage__goal-sub {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.mypage__goal-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.mypage__goal-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.mypage__goal-row svg {
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+.mypage__goal-row strong {
+  margin-left: auto;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* ── 목표 편집 ── */
+.mypage__goal-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.mypage__goal-edit-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: rgba(108, 92, 231, 0.1);
+}
+
+.mypage__goal-input-wrap {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.mypage__goal-input {
+  width: 56px;
+  padding: 4px 6px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.mypage__goal-input:focus {
+  border-color: var(--color-primary);
+}
+
+.mypage__goal-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  justify-content: flex-end;
+}
+.mypage__goal-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.mypage__goal-save-btn:hover {
+  opacity: 0.85;
+}
+.mypage__goal-cancel-btn {
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.mypage__goal-cancel-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* ── 최근 퀴즈 기록 ── */
+.mypage__quiz-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.mypage__quiz-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  transition: background var(--transition-fast);
+}
+.mypage__quiz-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.mypage__quiz-color {
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.mypage__quiz-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage__quiz-subject {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mypage__quiz-topic {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.mypage__quiz-score {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.mypage__quiz-score-value {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mypage__quiz-date {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+/* ── 빠른 실행 ── */
+.mypage__quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.mypage__quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  background: rgba(108, 92, 231, 0.08);
+  border: 1px solid rgba(108, 92, 231, 0.15);
+  color: var(--color-primary-light);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+.mypage__quick-btn:hover {
+  background: rgba(108, 92, 231, 0.18);
+  border-color: rgba(108, 92, 231, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
+}
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+  .mypage__hero-content {
+    flex-direction: column;
+    text-align: center;
+    padding: var(--spacing-xl);
+  }
+
+  .mypage__hero-meta {
+    justify-content: center;
+  }
+
+  .mypage__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mypage__goal {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .mypage__quick-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

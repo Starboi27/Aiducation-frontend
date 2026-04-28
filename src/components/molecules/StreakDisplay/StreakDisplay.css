@@ -1,0 +1,73 @@
+@keyframes flicker {
+  0%, 100% { transform: scaleY(1) rotate(-2deg); }
+  25% { transform: scaleY(1.1) rotate(2deg); }
+  50% { transform: scaleY(0.95) rotate(-1deg); }
+  75% { transform: scaleY(1.05) rotate(1deg); }
+}
+@keyframes particleRise {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  100% { transform: translate(var(--tx, 0), var(--ty, -30px)) scale(0); opacity: 0; }
+}
+
+.streak-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  transition: all var(--transition-normal);
+}
+.streak-display--active {
+  border-color: rgba(225, 112, 85, 0.4);
+  background: rgba(225, 112, 85, 0.05);
+  box-shadow: 0 0 20px rgba(225, 112, 85, 0.15);
+}
+
+.streak-display__flame-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+.streak-display__flame { color: var(--text-muted); transition: color var(--transition-normal); }
+.streak-display__flame--burning {
+  color: #e17055;
+  filter: drop-shadow(0 0 8px rgba(225,112,85,0.7));
+  animation: flicker 0.8s ease-in-out infinite;
+}
+
+.streak-particle {
+  position: absolute;
+  width: 6px; height: 6px;
+  background: radial-gradient(circle, #fdcb6e, #e17055);
+  border-radius: 50%;
+  animation: particleRise 1.5s ease-out infinite var(--delay, 0s);
+}
+
+.streak-display__info { min-width: 0; }
+.streak-display__count {
+  font-size: var(--font-size-3xl);
+  font-weight: 900;
+  line-height: 1;
+  color: #e17055;
+  text-shadow: 0 0 20px rgba(225,112,85,0.5);
+}
+.streak-display__label { font-size: var(--font-size-sm); color: var(--text-secondary); font-weight: 500; }
+.streak-display__max { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
+
+/* Compact */
+.streak-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.streak-compact--active {
+  color: #e17055;
+  border-color: rgba(225,112,85,0.4);
+  background: rgba(225,112,85,0.08);
+}
+.streak-compact--active svg { animation: flicker 0.8s ease-in-out infinite; }

@@ -1,0 +1,125 @@
+.file-uploader { display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+.file-uploader__zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius-xl);
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  background: var(--bg-input);
+  text-align: center;
+}
+.file-uploader__zone:hover,
+.file-uploader__zone--drag {
+  border-color: var(--color-primary);
+  background: rgba(108,92,231,0.06);
+  box-shadow: var(--shadow-glow);
+}
+.file-uploader__zone--drag { border-style: solid; transform: scale(1.01); }
+
+.file-uploader__zone-content { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-md); pointer-events: none; }
+
+.file-uploader__upload-icon {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(108,92,231,0.1);
+  border: 2px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  transition: all var(--transition-normal);
+}
+.file-uploader__upload-icon--active,
+.file-uploader__zone:hover .file-uploader__upload-icon {
+  background: rgba(108,92,231,0.2);
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
+  animation: float 2s ease-in-out infinite;
+}
+
+.file-uploader__title { font-size: var(--font-size-lg); font-weight: 700; color: var(--text-primary); }
+.file-uploader__subtitle { font-size: var(--font-size-sm); color: var(--text-muted); }
+.file-uploader__types { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+.file-uploader__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(214,48,49,0.1);
+  border: 1px solid rgba(214,48,49,0.3);
+  border-radius: var(--border-radius-md);
+  color: #ff7675;
+  font-size: var(--font-size-sm);
+}
+
+.file-uploader__list { display: flex; flex-direction: column; gap: 8px; }
+.file-uploader__list-title { font-size: var(--font-size-sm); font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+
+.file-uploader__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-normal);
+  animation: slideIn 0.3s ease forwards;
+  position: relative;
+  overflow: hidden;
+}
+.file-uploader__item--analyzing { border-color: rgba(108,92,231,0.4); }
+.file-uploader__item--done { border-color: rgba(0,184,148,0.4); background: rgba(0,184,148,0.04); }
+
+.file-uploader__item-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.file-uploader__item--analyzing .file-uploader__item-icon { color: var(--color-primary-light); }
+.file-uploader__item--done .file-uploader__item-icon { color: var(--color-success); }
+
+.file-uploader__item-info { flex: 1; min-width: 0; }
+.file-uploader__item-name { font-size: var(--font-size-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-uploader__item-size { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
+
+.file-uploader__item-remove {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 4px; display: flex;
+  border-radius: var(--border-radius-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.file-uploader__item-remove:hover { background: rgba(214,48,49,0.1); color: #ff7675; }
+
+.file-uploader__item-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  width: 100%;
+}
+.file-uploader__item-progress-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-light);
+  font-weight: 500;
+  text-align: right;
+}
+.file-uploader__item-progress-bar-container {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+}
+.file-uploader__item-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+}

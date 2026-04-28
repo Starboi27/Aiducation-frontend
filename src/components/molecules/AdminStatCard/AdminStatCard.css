@@ -1,0 +1,54 @@
+.admin-stat-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-4px);
+}
+
+.admin-stat-icon {
+  background-color: rgba(108, 92, 231, 0.1);
+  padding: 0.75rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-stat-content {
+  flex: 1;
+}
+
+.admin-stat-title {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+}
+
+.admin-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.admin-stat-subvalue {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.admin-stat-subvalue.up {
+  color: #2ecc71;
+}
+
+.admin-stat-subvalue.down {
+  color: #e74c3c;
+}

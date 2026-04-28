@@ -1,0 +1,2 @@
+.ranking-page { display: flex; flex-direction: column; gap: var(--spacing-xl); }
+.ranking-page__content { animation: slideIn 0.3s ease; }

@@ -1,0 +1,193 @@
+/* ── SubjectManager Organism ──────────────────────────────────── */
+.subject-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* ── Pending Banner ───────────────────────────────────────────── */
+.subject-manager__pending {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: linear-gradient(
+    135deg,
+    rgba(108, 92, 231, 0.15) 0%,
+    rgba(0, 206, 201, 0.08) 100%
+  );
+  border: 1px solid rgba(108, 92, 231, 0.4);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 0 24px rgba(108, 92, 231, 0.15);
+}
+
+.pending__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(108, 92, 231, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.pending__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pending__title {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.pending__sub {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.pending__topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pending__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.pending__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-sm);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
+}
+
+.pending__btn--confirm {
+  background: var(--color-primary);
+  color: #fff;
+}
+.pending__btn--confirm:hover { background: var(--color-primary-dark); }
+
+.pending__btn--dismiss {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  padding: 8px;
+}
+.pending__btn--dismiss:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-danger);
+}
+
+/* ── Manual Add Form ──────────────────────────────────────────── */
+.subject-manager__manual-form {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--bg-card);
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+}
+
+.manual-form__icon {
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+.manual-form__input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.manual-form__input:focus { border-color: var(--color-primary); }
+.manual-form__input::placeholder { color: var(--text-muted); }
+
+.manual-form__cancel {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast);
+}
+.manual-form__cancel:hover { color: var(--color-danger); }
+
+/* ── Empty State ──────────────────────────────────────────────── */
+.subject-manager__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  text-align: center;
+  gap: var(--spacing-lg);
+}
+
+.empty__illustration {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(108, 92, 231, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: float 3s ease-in-out infinite;
+}
+
+.empty__icon { color: var(--color-primary-light); }
+
+.empty__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.empty__desc {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.empty__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Subject Grid ─────────────────────────────────────────────── */
+.subject-manager__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}

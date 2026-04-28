@@ -1,0 +1,16 @@
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}

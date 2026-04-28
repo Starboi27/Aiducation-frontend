@@ -1,0 +1,21 @@
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.admin-badge.admin {
+  background-color: #6c5ce7;
+  color: white;
+  box-shadow: 0 2px 4px rgba(108, 92, 231, 0.3);
+}
+
+.admin-badge.user {
+  background-color: #e0e0e0;
+  color: #666;
+}

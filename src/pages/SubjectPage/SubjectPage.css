@@ -1,0 +1,26 @@
+/* ── SubjectPage (Page layer only) ─────────────────────────────── */
+.subject-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.subject-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.subject-page__header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.subject-page__title-icon {
+  vertical-align: middle;
+  margin-right: var(--spacing-sm);
+  color: var(--color-primary-light);
+}

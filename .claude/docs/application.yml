@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: aiducation-backend
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:mariadb://bbasung.iptime.org:3306/cproject?characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    #{dbname}에 db 이름 추가해주세요!
+    username: root
+    password: rnjsrlqja!@
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 개발 단계: update / 운영 단계: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+    open-in-view: false
+
+  # ── Mail (복습 알림 이메일) ────────────────────────────────────────────────
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+# ── Server ────────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+
+# ── JWT ───────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:aiducation-secret-key-must-be-at-least-32-characters-long}
+  access-token-expiration: 3600000 # 1시간 (ms)
+  refresh-token-expiration: 1209600000 # 14일 (ms)
+
+# ── AI Server ─────────────────────────────────────────────────────────────────
+ai:
+  server:
+    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    timeout: 60000 # 60초 (ms)
+  internal:
+    secret: ${AI_INTERNAL_SECRET:aiducation-internal-secret}
+
+# ── File Storage ──────────────────────────────────────────────────────────────
+file:
+  upload:
+    path: ${FILE_UPLOAD_PATH:./uploads}
+    max-size: 50MB
+
+# ── Scheduler (랭킹 집계 / 복습 알림) ───────────────────────────────────────────
+scheduler:
+  ranking:
+    daily-cron: "0 0 0 * * *" # 매일 00:00
+    weekly-cron: "0 0 0 * * MON" # 매주 월요일 00:00
+  notification:
+    check-cron: "0 0 8 * * *" # 매일 오전 08:00 발송 여부 체크
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.aiducation: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# - kakao --------
+kakao:
+  auth-url: https://kauth.kakao.com/oauth/authorize
+  token-url: https://kauth.kakao.com/oauth/token
+  user-info-url: https://kapi.kakao.com/v2/user/me
+  client-id: 098ad96e323113bb49472055012019f8
+  client-secret: fUgkKEaeYoMDGY3SrtylzVhyUsEAYppV
+  redirect-uri: http://localhost:8080/oauth/kakao/callback

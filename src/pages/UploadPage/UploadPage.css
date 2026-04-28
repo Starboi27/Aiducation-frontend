@@ -1,0 +1,13 @@
+.upload-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-header { margin-bottom: var(--spacing-md); }
+.page-title { font-size: var(--font-size-2xl); font-weight: 800; margin-bottom: 8px; }
+.page-desc { font-size: var(--font-size-md); color: var(--text-secondary); line-height: 1.6; }
+
+.upload-page__content { animation: slideIn 0.4s ease; }

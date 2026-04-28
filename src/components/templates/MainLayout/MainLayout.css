@@ -1,0 +1,20 @@
+.main-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  width: 100%;
+}
+
+.main-layout__content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition-normal);
+  padding: var(--spacing-2xl);
+  max-width: 1200px;
+  width: 100%;
+}
+
+/* Response to sidebar collapse */
+.sidebar--collapsed + .main-layout__content {
+  margin-left: 68px;
+}

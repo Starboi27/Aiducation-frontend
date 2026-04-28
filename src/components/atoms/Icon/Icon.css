@@ -1,0 +1,8 @@
+.icon { display: inline-flex; align-items: center; justify-content: center; }
+.icon--circle { background: var(--bg-card); border-radius: 50%; padding: 8px; border: 1px solid var(--border-color); }
+.icon--primary { color: var(--color-primary-light); }
+.icon--success { color: var(--color-success); }
+.icon--warning { color: var(--color-gold); }
+.icon--danger { color: #ff7675; }
+.icon--muted { color: var(--text-muted); }
+.icon--current { color: currentColor; }
