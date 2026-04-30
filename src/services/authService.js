@@ -23,6 +23,10 @@ export const AUTH_CONFIG = {
   // Mock 전환: true → Mock 데이터 사용 / false → 실제 백엔드 호출
   useMock: false,
 
+  // 비밀번호 재설정: 백엔드 permitAll() 설정 전 임시 Mock 사용
+  // 백엔드 준비 완료 시 false로 변경
+  useMockReset: false,
+
   mockDelayMs: 800,
 };
 
@@ -40,6 +44,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MOCK_USERS = [
   {
     id: "user_001",
+    userId: "testuser",
     name: "이창현",
     email: "test@test.com",
     password: "1234",
@@ -120,15 +125,26 @@ async function mockFindEmail(name) {
   return { email: masked };
 }
 
-async function mockResetPassword(email) {
+async function mockRequestReset(userId, email) {
   await sleep(AUTH_CONFIG.mockDelayMs);
+  // mock: 입력값이 비어있지 않으면 발송 성공 (실제 DB 검증은 백엔드 담당)
+  if (!userId || !email)
+    throw new Error("아이디와 이메일을 모두 입력해주세요.");
+  return { message: `${email}로 인증 코드를 발송했습니다.` };
+}
 
+async function mockVerifyCode(email, code) {
+  await sleep(AUTH_CONFIG.mockDelayMs);
+  if (code !== "ab1234") throw new Error("인증 코드가 올바르지 않습니다.");
+  return { success: true };
+}
+
+async function mockCompleteReset(email, code, newPassword) {
+  await sleep(AUTH_CONFIG.mockDelayMs);
+  // mock: DB 업데이트 시뮬레이션 (실제 유저 존재 여부 무관)
   const user = MOCK_USERS.find((u) => u.email === email);
-  if (!user) {
-    throw new Error("해당 이메일로 등록된 계정을 찾을 수 없습니다.");
-  }
-
-  return { message: `${email}로 비밀번호 재설정 링크를 발송했습니다.` };
+  if (user) user.password = newPassword;
+  return { message: "비밀번호가 변경되었습니다." };
 }
 
 async function mockGetMe(token) {
@@ -170,31 +186,73 @@ function mapLoginResponse(data) {
     wrongCount: 0,
     unreadNotifications: 0,
   };
-  localStorage.setItem('user_info', JSON.stringify(user));
-  localStorage.setItem('refresh_token', data.refreshToken);
+  localStorage.setItem("user_info", JSON.stringify(user));
+  localStorage.setItem("refresh_token", data.refreshToken);
   return { token: data.accessToken, user };
 }
 
 async function realLogin(email, password) {
-  return apiClient.post("/api/v1/auth/login", { userId: email, password }).then(mapLoginResponse);
+  return apiClient
+    .post("/api/v1/auth/login", { userId: email, password })
+    .then(mapLoginResponse);
 }
 
 async function realSignup(email, password, name) {
-  return apiClient.post("/api/v1/auth/signup", { userId: email, password, name, email }).then(mapLoginResponse);
+  return apiClient
+    .post("/api/v1/auth/signup", { userId: email, password, name, email })
+    .then(mapLoginResponse);
 }
 
 async function realFindEmail(name) {
   return apiClient.post("/api/v1/auth/find-id", { email: name });
 }
 
-async function realResetPassword(email) {
-  return apiClient.post("/api/v1/auth/reset-password", { email });
+async function realRequestReset(userId, email) {
+  return apiClient.post("/api/v1/auth/reset-password", { userId, email });
 }
 
-async function realGetMe(_token) {
-  const saved = localStorage.getItem('user_info');
+async function realVerifyCode(email, code) {
+  return apiClient.post("/api/v1/auth/reset-password/verify", { email, code });
+}
+
+async function realCompleteReset(email, code, newPassword) {
+  return apiClient.post("/api/v1/auth/reset-password/complete", {
+    email,
+    code,
+    newPassword,
+  });
+}
+
+async function realGetMe(token) {
+  const saved = localStorage.getItem("user_info");
   if (saved) return JSON.parse(saved);
-  throw new Error('유저 정보를 찾을 수 없습니다.');
+
+  // 소셜 로그인 콜백: localStorage에 user_info 없을 시 JWT payload decode
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const user = {
+        id: payload.sub,
+        name: payload.name ?? payload.sub,
+        email: payload.sub,
+        role: payload.role?.toLowerCase() ?? "user",
+        level: 1,
+        totalExp: 0,
+        totalSolved: 0,
+        correctCount: 0,
+        streak: 0,
+        maxStreak: 0,
+        accuracy: 0,
+        wrongCount: 0,
+        unreadNotifications: 0,
+      };
+      localStorage.setItem("user_info", JSON.stringify(user));
+      return user;
+    } catch {
+      throw new Error("사용자 정보를 불러올 수 없습니다.");
+    }
+  }
+  throw new Error("유저 정보를 찾을 수 없습니다.");
 }
 
 async function realGetAllUsers() {
@@ -206,8 +264,8 @@ async function realGetAllUsers() {
  * Spring이 카카오와 코드 교환 → JWT 발급 → 프론트엔드 /oauth/callback?token=<JWT> 로 포워딩.
  */
 function realSocialLogin(provider) {
-  window.location.href = `${AUTH_CONFIG.baseUrl}/oauth/${provider}`;
-  // 브라우저가 이동하므로 이 함수는 값을 반환하지 않음
+  const paths = { kakao: "/oauth/kakao_login", google: "/oauth/google_login" };
+  window.location.href = `${AUTH_CONFIG.baseUrl}${paths[provider]}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,11 +291,25 @@ export const authService = {
     return AUTH_CONFIG.useMock ? mockFindEmail(name) : realFindEmail(name);
   },
 
-  /** 비밀번호 재설정 요청 → { message } */
-  resetPassword(email) {
-    return AUTH_CONFIG.useMock
-      ? mockResetPassword(email)
-      : realResetPassword(email);
+  /** 비밀번호 재설정 1단계: 아이디+이메일 확인 후 코드 발송 */
+  requestReset(userId, email) {
+    return AUTH_CONFIG.useMock || AUTH_CONFIG.useMockReset
+      ? mockRequestReset(userId, email)
+      : realRequestReset(userId, email);
+  },
+
+  /** 비밀번호 재설정 2단계: 코드 검증 */
+  verifyCode(email, code) {
+    return AUTH_CONFIG.useMock || AUTH_CONFIG.useMockReset
+      ? mockVerifyCode(email, code)
+      : realVerifyCode(email, code);
+  },
+
+  /** 비밀번호 재설정 3단계: 새 비밀번호 설정 */
+  completeReset(email, code, newPassword) {
+    return AUTH_CONFIG.useMock || AUTH_CONFIG.useMockReset
+      ? mockCompleteReset(email, code, newPassword)
+      : realCompleteReset(email, code, newPassword);
   },
 
   /** 토큰으로 유저 정보 조회 (자동 로그인) → User */

@@ -17,7 +17,8 @@ const OAuthCallbackPage = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    const token = params.get('accessToken') ?? params.get('token');
+    const refreshToken = params.get('refreshToken');
     const errorParam = params.get('error');
 
     if (errorParam) {
@@ -32,8 +33,10 @@ const OAuthCallbackPage = () => {
       return;
     }
 
-    // 토큰 저장 후 유저 정보 조회
+    // 이전 유저 정보 초기화 후 새 토큰 저장
+    localStorage.removeItem('user_info');
     tokenStorage.set(token);
+    if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
     authService
       .getMe(token)
       .then((user) => {

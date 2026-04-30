@@ -42,6 +42,7 @@ const AppRoutes = () => {
 
       {/* OAuth 콜백: 로그인 전 접근 가능 (카카오/구글 소셜 로그인 완료 처리) */}
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+      <Route path="/oauth2/callback" element={<OAuthCallbackPage />} />
       
       {/* 사용자 전용 라우트 */}
       <Route path="/" element={user ? <MainLayout /> : <Navigate to="/login" replace />}>

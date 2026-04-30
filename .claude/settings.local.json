@@ -6,7 +6,9 @@
       "Bash(git -C /home/starboi27/src/Aiducation/aiducation status --porcelain)",
       "Bash(git -C /home/starboi27/src/Aiducation/aiducation ls-files .claude)",
       "Bash(git *)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(python3 *)",
+      "Bash(grep *)"
     ]
   }
 }

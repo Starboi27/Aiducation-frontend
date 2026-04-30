@@ -41,11 +41,22 @@ async function request(method, path, options = {}) {
     throw new Error('서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.');
   }
 
-  // 토큰 만료 → 로컬스토리지 정리 후 로그인 페이지로
+  // 공개 인증 엔드포인트(회원가입, 비밀번호 재설정 등)는 401 시 리다이렉트 제외
+  const PUBLIC_AUTH_PATHS = [
+    '/api/v1/auth/signup',
+    '/api/v1/auth/login',
+    '/api/v1/auth/find-id',
+    '/api/v1/auth/reset-password',
+  ];
+  const isPublicPath = PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p));
+
   if (res.status === 401) {
-    localStorage.removeItem(TOKEN_KEY);
-    window.location.href = '/login';
-    throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+    if (!isPublicPath) {
+      localStorage.removeItem(TOKEN_KEY);
+      window.location.href = '/login';
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message ?? '인증이 만료되었습니다. 다시 로그인해주세요.');
   }
 
   // 204 No Content

@@ -445,6 +445,77 @@
   box-shadow: 0 4px 10px rgba(254, 229, 0, 0.15);
 }
 
+/* ── 비밀번호 찾기 스텝 인디케이터 ───────────────────── */
+.login-page__steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: var(--spacing-lg);
+}
+
+.login-page__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.login-page__step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.login-page__step--active .login-page__step-circle {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+}
+
+.login-page__step--done .login-page__step-circle {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  opacity: 0.6;
+}
+
+.login-page__step-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.login-page__step--active .login-page__step-label {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.login-page__step-line {
+  flex: 1;
+  height: 2px;
+  min-width: 24px;
+  max-width: 40px;
+  background: var(--border-color);
+  margin-bottom: 14px;
+  transition: background var(--transition-fast);
+}
+
+.login-page__step-line--done {
+  background: var(--color-primary);
+  opacity: 0.6;
+}
+
 .btn-google {
   background-color: #FFFFFF;
   color: #333333;
