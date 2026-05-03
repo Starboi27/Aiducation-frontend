@@ -1,7 +1,8 @@
 /**
  * 공통 HTTP 클라이언트
  * - JWT 토큰 자동 주입 (localStorage → Authorization 헤더)
- * - 401 응답 시 토큰 제거 후 /login 리다이렉트
+ * - 401 응답 시 refresh token으로 재발급 후 원래 요청 재시도
+ * - 재발급 실패 시 토큰 제거 후 /login 리다이렉트
  * - 에러 메시지 정규화
  *
  * ⚠️ 순환 의존성 방지: authService를 import하지 않음.
@@ -12,8 +13,55 @@
 // 프로덕션: REACT_APP_API_URL에 실제 도메인 설정 (예: https://api.aiducation.com)
 const BASE_URL = process.env.REACT_APP_API_URL ?? 'http://bbasung.iptime.org:8080';
 const TOKEN_KEY = 'auth_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
+
+// 인증 토큰을 붙이지 않을 공개 경로
+const PUBLIC_AUTH_PATHS = [
+  '/api/v1/auth/signup',
+  '/api/v1/auth/login',
+  '/api/v1/auth/find-id',
+  '/api/v1/auth/reset-password',
+  '/api/v1/auth/refresh',
+];
+
+// 동시에 여러 요청이 401을 받을 경우 refresh를 한 번만 시도하기 위한 잠금
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(newToken) {
+  refreshSubscribers.forEach((cb) => cb(newToken));
+  refreshSubscribers = [];
+}
+
+async function tryRefreshToken() {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) throw new Error('refresh token 없음');
+
+  const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) throw new Error('refresh 실패');
+
+  const data = await res.json();
+  const newAccessToken = data.accessToken;
+  localStorage.setItem(TOKEN_KEY, newAccessToken);
+  if (data.refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+  }
+  return newAccessToken;
+}
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem('user_info');
+  window.location.href = '/login';
+}
 
 async function request(method, path, options = {}) {
   const { body, isFormData = false } = options;
@@ -25,7 +73,10 @@ async function request(method, path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const token = getToken();
+  const isPublicPath = PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p));
+
+  // 공개 경로에는 만료된 토큰을 보내지 않음 (Spring Security가 토큰 검증 후 401 반환하는 문제 방지)
+  const token = isPublicPath ? null : getToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -41,19 +92,31 @@ async function request(method, path, options = {}) {
     throw new Error('서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.');
   }
 
-  // 공개 인증 엔드포인트(회원가입, 비밀번호 재설정 등)는 401 시 리다이렉트 제외
-  const PUBLIC_AUTH_PATHS = [
-    '/api/v1/auth/signup',
-    '/api/v1/auth/login',
-    '/api/v1/auth/find-id',
-    '/api/v1/auth/reset-password',
-  ];
-  const isPublicPath = PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p));
-
   if (res.status === 401) {
     if (!isPublicPath) {
-      localStorage.removeItem(TOKEN_KEY);
-      window.location.href = '/login';
+      // refresh token으로 재발급 시도
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const newToken = await tryRefreshToken();
+          isRefreshing = false;
+          onRefreshed(newToken);
+          // 원래 요청 재시도 (새 토큰으로)
+          return request(method, path, options);
+        } catch {
+          isRefreshing = false;
+          refreshSubscribers = [];
+          clearAuthAndRedirect();
+          throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+        }
+      }
+
+      // 이미 refresh 중이면 완료될 때까지 대기 후 재시도
+      return new Promise((resolve, reject) => {
+        refreshSubscribers.push((newToken) => {
+          resolve(request(method, path, options));
+        });
+      });
     }
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message ?? '인증이 만료되었습니다. 다시 로그인해주세요.');

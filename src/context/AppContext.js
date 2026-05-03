@@ -15,9 +15,15 @@ export const AppProvider = ({ children }) => {
     setUser(userObj);
   };
 
-  const logout = () => {
-    localStorage.removeItem("auth_token");
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+      setUser(null);
+    }
   };
 
   // (자동 로그인) 앱 시작 시 토큰 검증:
@@ -43,6 +49,8 @@ export const AppProvider = ({ children }) => {
         })
         .catch(() => {
           localStorage.removeItem("auth_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user_info");
           setIsInitializing(false);
         });
     } else {

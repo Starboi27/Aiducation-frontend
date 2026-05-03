@@ -7,7 +7,6 @@ import {
 import { Avatar } from '../../atoms';
 import { StreakDisplay, ExpCard } from '../../molecules';
 import { useApp } from '../../../context/AppContext';
-import { tokenStorage } from '../../../services/authService';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -20,13 +19,12 @@ const NAV_ITEMS = [
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, setUser } = useApp();
+  const { user, logout } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    tokenStorage.remove();
-    setUser(null);
+  const handleLogout = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
 

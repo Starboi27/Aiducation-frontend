@@ -187,7 +187,9 @@ function mapLoginResponse(data) {
     unreadNotifications: 0,
   };
   localStorage.setItem("user_info", JSON.stringify(user));
-  localStorage.setItem("refresh_token", data.refreshToken);
+  if (data.refreshToken) {
+    localStorage.setItem("refresh_token", data.refreshToken);
+  }
   return { token: data.accessToken, user };
 }
 
@@ -195,6 +197,10 @@ async function realLogin(email, password) {
   return apiClient
     .post("/api/v1/auth/login", { userId: email, password })
     .then(mapLoginResponse);
+}
+
+async function realLogout() {
+  await apiClient.post("/api/v1/auth/logout");
 }
 
 async function realSignup(email, password, name) {
@@ -338,5 +344,11 @@ export const authService = {
     }
     realSocialLogin(provider);
     // Real: 페이지가 이동하므로 반환값 없음
+  },
+
+  /** 로그아웃 — 서버 토큰 무효화 (Mock 모드에서는 건너뜀) */
+  logout() {
+    if (AUTH_CONFIG.useMock) return Promise.resolve();
+    return realLogout();
   },
 };

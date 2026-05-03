@@ -115,7 +115,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       if (mode === "findEmail") {
-        const result = await authService.findEmail(form.name);
+        const result = await authService.findEmail(form.email);
         setSuccessMsg(`등록된 이메일: ${result.email}`);
       } else if (mode === "findPassword") {
         if (findPasswordStep === "email") {

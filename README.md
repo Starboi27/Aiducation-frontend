@@ -30,6 +30,23 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ---
 
+## 2026-05-03 작업 현황
+
+### 인증 시스템 개선
+
+- **토큰 자동 갱신 (Token Refresh)** — Access Token 만료 시 Refresh Token으로 자동 재발급 후 원래 요청 재시도. 재발급 실패 시에만 로그인 페이지로 이동.
+- **공개 경로 토큰 분리** — 로그인/회원가입 등 공개 엔드포인트에 만료된 토큰을 함께 보내 Spring Security가 401 반환하던 버그 수정.
+- **로그아웃 API 연동** — 기존 localStorage 토큰 삭제만 하던 방식에서 `POST /api/v1/auth/logout` 백엔드 호출 후 로컬 정리로 변경. 서버 오류 시에도 로컬 토큰은 반드시 삭제.
+- **Refresh Token 저장 버그 수정** — 백엔드 응답에 `refreshToken`이 없을 때 문자열 `"undefined"`가 저장되던 문제 수정.
+- **초기화 실패 시 토큰 정리 통일** — 앱 시작 시 토큰 검증 실패할 경우 `auth_token`만 삭제하던 것을 `refresh_token`, `user_info`까지 전부 정리하도록 수정.
+
+### 프로젝트 정리
+
+- `.claude/` 디렉토리 정리 — 중복된 `config/`, `configs/` 폴더 통합, `settings.local.json` 루트 하나로 일원화
+- 임시 계획 문서(PLAN, SPEC 등) 정리
+
+---
+
 ## ⚠️ API 명세 및 연동 이슈
 
 현재 백엔드 API 명세(`doc_api.json`)와 실제 구현 및 프론트엔드 요구사항 간의 차이점입니다.
