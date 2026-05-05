@@ -6,13 +6,13 @@
  * - 에러 메시지 정규화
  *
  * ⚠️ 순환 의존성 방지: authService를 import하지 않음.
- *    토큰은 localStorage에서 직접 읽음 (tokenStorage와 동일한 key 'auth_token' 사용).
+ *    토큰은 localStorage에서 직접 읽음 (tokenStorage와 동일한 key 'accessToken' 사용).
  */
 
 // 개발: proxy(package.json)가 /api/* 요청을 localhost:8080으로 중계 → 상대 경로 사용
 // 프로덕션: REACT_APP_API_URL에 실제 도메인 설정 (예: https://api.aiducation.com)
 const BASE_URL = process.env.REACT_APP_API_URL ?? 'http://bbasung.iptime.org:8080';
-const TOKEN_KEY = 'auth_token';
+const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);

@@ -30,6 +30,25 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ---
 
+## 2026-05-05 작업 현황
+
+### 구글 소셜 로그인 디버깅 및 연동
+
+- **`redirect_uri_mismatch` 에러 원인 확인** — Google Cloud Console에 `http://bbasung.iptime.org:8080/login/oauth2/code/google` URI 미등록이 원인. 콘솔에 직접 등록 필요.
+- **토큰 발급 성공 확인** — Google OAuth 인증 자체는 정상 동작. `accessToken` / `refreshToken` 모두 정상 발급 확인.
+- **리다이렉트 포트 오류 확인** — 백엔드가 OAuth 성공 후 `http://localhost:8080/oauth2/callback`(백엔드 포트)으로 리다이렉트하는 문제 발견. `http://localhost:3000`(프론트 포트)으로 변경 요청 필요.
+- **유저 이름 `google_c5e3385f` 표시 문제 확인** — JWT 페이로드에 `name` 필드가 없어 내부 ID가 이름으로 표시되는 문제. 백엔드에 JWT 발급 시 `name`, `email` 클레임 추가 요청 필요. (구글 OAuth `profile` 스코프로 실명 획득 가능)
+- **프론트 코드 이상 없음** — `OAuthCallbackPage.jsx`(토큰 저장 → 메인 이동), `apiClient.js`(Bearer 자동 주입) 모두 정상 구현 확인.
+
+### 백엔드 요청 사항 (미완료)
+
+| 항목 | 내용 |
+|------|------|
+| 리다이렉트 URL 수정 | OAuth 성공 후 `http://localhost:3000/oauth2/callback` 으로 리다이렉트 |
+| JWT 클레임 추가 | `name`, `email` 필드 포함 |
+
+---
+
 ## 2026-05-03 작업 현황
 
 ### 인증 시스템 개선
@@ -38,7 +57,7 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 - **공개 경로 토큰 분리** — 로그인/회원가입 등 공개 엔드포인트에 만료된 토큰을 함께 보내 Spring Security가 401 반환하던 버그 수정.
 - **로그아웃 API 연동** — 기존 localStorage 토큰 삭제만 하던 방식에서 `POST /api/v1/auth/logout` 백엔드 호출 후 로컬 정리로 변경. 서버 오류 시에도 로컬 토큰은 반드시 삭제.
 - **Refresh Token 저장 버그 수정** — 백엔드 응답에 `refreshToken`이 없을 때 문자열 `"undefined"`가 저장되던 문제 수정.
-- **초기화 실패 시 토큰 정리 통일** — 앱 시작 시 토큰 검증 실패할 경우 `auth_token`만 삭제하던 것을 `refresh_token`, `user_info`까지 전부 정리하도록 수정.
+- **초기화 실패 시 토큰 정리 통일** — 앱 시작 시 토큰 검증 실패할 경우 `accessToken`만 삭제하던 것을 `refresh_token`, `user_info`까지 전부 정리하도록 수정.
 
 ### 프로젝트 정리
 
@@ -58,8 +77,9 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ### 2. 소셜 로그인 (Social Login)
 
-- **구글 로그인:** 프론트엔드 UI는 준비되었으나, 백엔드 `application.yml` 설정 및 API 명세가 누락되어 작동하지 않음.
-- **리다이렉트 주소:** 백엔드 설정의 `redirect-uri`가 `8080` 포트로 되어 있어, 리액트 개발 서버(`3000`)로의 정상적인 복귀가 불가능한 상태. (수정 필요)
+- **구글 로그인:** 토큰 발급까지는 성공. Google Cloud Console에 리다이렉트 URI 등록 및 백엔드 2가지 수정 후 완전 동작 예정.
+- **리다이렉트 주소:** 백엔드가 OAuth 성공 후 `localhost:8080`(백엔드)으로 리다이렉트 → `localhost:3000`(프론트)으로 수정 요청 필요.
+- **JWT 유저 정보 누락:** JWT에 `name`, `email` 미포함으로 유저명이 내부 ID(`google_c5e3385f`)로 표시됨. 백엔드에 클레임 추가 요청 필요.
 
 ---
 

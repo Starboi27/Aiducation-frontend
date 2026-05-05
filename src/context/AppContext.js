@@ -11,7 +11,7 @@ export const AppProvider = ({ children }) => {
 
   // ── 로그인 / 로그아웃 액션 ──────────────────────────────────────
   const login = (token, userObj) => {
-    localStorage.setItem("auth_token", token);
+    localStorage.setItem("accessToken", token);
     setUser(userObj);
   };
 
@@ -19,7 +19,7 @@ export const AppProvider = ({ children }) => {
     try {
       await authService.logout();
     } finally {
-      localStorage.removeItem("auth_token");
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user_info");
       setUser(null);
@@ -34,12 +34,12 @@ export const AppProvider = ({ children }) => {
     const params = new URLSearchParams(window.location.search);
     const oauthToken = params.get("token");
     if (oauthToken) {
-      localStorage.setItem("auth_token", oauthToken);
+      localStorage.setItem("accessToken", oauthToken);
       // URL에서 token 파라미터 제거 (보안)
       window.history.replaceState({}, "", window.location.pathname);
     }
 
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("accessToken");
     if (token) {
       authService
         .getMe(token)
@@ -48,7 +48,7 @@ export const AppProvider = ({ children }) => {
           setIsInitializing(false);
         })
         .catch(() => {
-          localStorage.removeItem("auth_token");
+          localStorage.removeItem("accessToken");
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_info");
           setIsInitializing(false);

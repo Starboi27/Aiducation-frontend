@@ -32,9 +32,9 @@ export const AUTH_CONFIG = {
 
 // ── Token 관리 (localStorage) ──────────────────────────────────────────────────
 export const tokenStorage = {
-  get: () => localStorage.getItem("auth_token"),
-  set: (token) => localStorage.setItem("auth_token", token),
-  remove: () => localStorage.removeItem("auth_token"),
+  get: () => localStorage.getItem("accessToken"),
+  set: (token) => localStorage.setItem("accessToken", token),
+  remove: () => localStorage.removeItem("accessToken"),
 };
 
 // ── Utility ────────────────────────────────────────────────────────────────────
@@ -270,7 +270,10 @@ async function realGetAllUsers() {
  * Spring이 카카오와 코드 교환 → JWT 발급 → 프론트엔드 /oauth/callback?token=<JWT> 로 포워딩.
  */
 function realSocialLogin(provider) {
-  const paths = { kakao: "/oauth/kakao_login", google: "/oauth/google_login" };
+  const paths = {
+    kakao: "/oauth/kakao_login",
+    google: "/oauth2/authorization/google",
+  };
   window.location.href = `${AUTH_CONFIG.baseUrl}${paths[provider]}`;
 }
 

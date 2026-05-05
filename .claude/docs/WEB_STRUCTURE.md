@@ -196,7 +196,7 @@ AdminLayout
 앱 로드
   └── AppContext 초기화
         ├── URL에 ?token= 파라미터 존재? → OAuth 콜백 처리
-        └── localStorage에 auth_token 존재?
+        └── localStorage에 accessToken 존재?
               ├── 있음 → authService.getMe(token) → user 상태 설정
               └── 없음 → /login으로 리다이렉트
 
