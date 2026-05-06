@@ -21,7 +21,7 @@ export const AI_CONFIG = {
   baseUrl: process.env.REACT_APP_API_URL ?? 'http://localhost:8080',
 
   // Mock 전환: true → Mock 데이터 / false → 실제 백엔드 호출
-  useMock: false,
+  useMock: true,
 
   mockDelayMs: 900,    // 각 분석 단계 딜레이 (UX용)
   defaultQuizCount: 5, // 토픽당 기본 문제 수

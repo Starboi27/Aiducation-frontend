@@ -21,11 +21,11 @@ export const AUTH_CONFIG = {
   baseUrl: process.env.REACT_APP_API_URL ?? "http://bbasung.iptime.org:8080",
 
   // Mock 전환: true → Mock 데이터 사용 / false → 실제 백엔드 호출
-  useMock: false,
+  useMock: true,
 
   // 비밀번호 재설정: 백엔드 permitAll() 설정 전 임시 Mock 사용
   // 백엔드 준비 완료 시 false로 변경
-  useMockReset: false,
+  useMockReset: true,
 
   mockDelayMs: 800,
 };
