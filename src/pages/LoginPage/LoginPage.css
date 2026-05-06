@@ -521,3 +521,83 @@
   color: #333333;
   border: 1px solid #DDDDDD;
 }
+
+/* ── 이메일 찾기 결과 ──────────────────────────────────── */
+.login-page__email-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.login-page__result-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0;
+}
+
+.login-page__email-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.login-page__email-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.login-page__email-item svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.login-page__result-empty {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--spacing-lg) 0;
+  margin: 0;
+}
+
+/* ── 이메일 선택 버튼 (list 단계) ───────────────────────── */
+.login-page__email-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  text-align: left;
+}
+
+.login-page__email-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: rgba(108, 92, 231, 0.06);
+}
+
+.login-page__email-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-page__email-btn svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}

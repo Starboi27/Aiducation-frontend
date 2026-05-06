@@ -21,7 +21,7 @@ export const AI_CONFIG = {
   baseUrl: process.env.REACT_APP_API_URL ?? 'http://localhost:8080',
 
   // Mock 전환: true → Mock 데이터 / false → 실제 백엔드 호출
-  useMock: true,
+  useMock: false,
 
   mockDelayMs: 900,    // 각 분석 단계 딜레이 (UX용)
   defaultQuizCount: 5, // 토픽당 기본 문제 수
@@ -129,33 +129,67 @@ async function mockGenerateQuiz(topicName, _subjectName, options) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 파일 업로드 후 AI 분석 시작.
- * onProgress는 업로드 시작/완료 두 단계만 호출 (SSE 미지원 시 단순 폴백).
+ * 파일을 subject에 업로드하고, 추출된 개념(concepts)을 Topic 형식으로 반환.
+ * @param {File}   file
+ * @param {function} onProgress
+ * @param {{ subjectId: string }} options - 실제 API 모드에서 subjectId 필수
  */
-async function realAnalyzeDocument(file, onProgress) {
+async function realAnalyzeDocument(file, onProgress, options = {}) {
+  const { subjectId } = options;
+  if (!subjectId) throw new Error('실제 API 모드에서는 options.subjectId가 필요합니다.');
+
   onProgress?.({ step: 'reading', status: 'active', progress: 0 });
 
   const formData = new FormData();
   formData.append('file', file);
 
-  // apiClient.postForm: Content-Type 헤더를 설정하지 않아 브라우저가 multipart/form-data + boundary 자동 설정
-  const data = await apiClient.postForm('/api/ai/analyze', formData);
+  // 파일 업로드 → POST /api/v1/subjects/{subjectId}/files
+  await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
+  onProgress?.({ step: 'analyzing', status: 'active', progress: 50 });
 
+  // 개념 목록 조회 → GET /api/v1/subjects/{subjectId}/concepts
+  const concepts = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
   onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
 
-  // 반환 형식: { subjectName, fileName, source: 'auto', topics: Topic[] }
-  return data;
+  return {
+    subjectName: file.name.replace(/\.[^.]+$/, ''),
+    fileName: file.name,
+    source: 'auto',
+    topics: (concepts ?? []).map((c, i) => ({
+      id: c.conceptId ?? c.id,
+      name: c.conceptName ?? c.name,
+      description: c.description ?? '',
+      quizCount: c.quizCount ?? 0,
+      color: TOPIC_COLORS[i % TOPIC_COLORS.length],
+      questions: [],
+    })),
+  };
 }
 
+/**
+ * 개념(conceptId) 기반 퀴즈 생성.
+ * options.conceptId 필수 (실제 API 모드).
+ */
 async function realGenerateQuiz(topicName, subjectName, options) {
-  const data = await apiClient.post('/api/ai/quiz', {
-    topicName,
-    subjectName,
+  const { conceptId } = options;
+  if (!conceptId) throw new Error('실제 API 모드에서는 options.conceptId가 필요합니다.');
+
+  const data = await apiClient.post(`/api/v1/concepts/${conceptId}/generate-quiz`, {
     count: options.count ?? AI_CONFIG.defaultQuizCount,
-    difficulty: options.difficulty ?? 'medium',
+    difficulty: options.difficulty ?? 3,
   });
-  // 백엔드 반환 형식에 따라 { questions: [...] } 또는 직접 배열 처리
-  return data.questions ?? data;
+
+  const quizzes = data.questions ?? data ?? [];
+  return quizzes.map((q, i) => ({
+    id: q.quizId ?? q.id ?? `q_${Date.now()}_${i}`,
+    topic: topicName,
+    difficulty: q.difficulty ?? 3,
+    question: q.question,
+    options: q.options ?? [],
+    // 백엔드 answer는 1-5 (1-based) → 프론트 correctIndex는 0-based
+    correctIndex: (q.answer ?? 1) - 1,
+    explanation: q.explanation ?? '',
+  }));
 }
 
 async function mockAnalyzeWrongAnswer(question, userAnswerText) {
@@ -163,10 +197,36 @@ async function mockAnalyzeWrongAnswer(question, userAnswerText) {
   return `[AI 분석] "${question}"에서 "${userAnswerText}"를 선택한 이유는 핵심 개념의 혼동으로 보입니다. 정답과의 차이를 명확히 이해하고 관련 개념을 복습하세요. (실제 API 연동 시 정밀한 분석이 제공됩니다.)`;
 }
 
-async function realAnalyzeWrongAnswer(question, userAnswerText) {
-  const data = await apiClient.post('/api/ai/analyze-wrong', { question, userAnswerText });
-  // 반환: { explanation: string } 또는 문자열 직접
+/**
+ * 퀴즈 해설 조회 → GET /api/v1/quizzes/{quizId}/explanation
+ * options.quizId 필수 (실제 API 모드).
+ */
+async function realAnalyzeWrongAnswer(question, userAnswerText, options = {}) {
+  const { quizId } = options;
+  if (!quizId) throw new Error('실제 API 모드에서는 options.quizId가 필요합니다.');
+  const data = await apiClient.get(`/api/v1/quizzes/${quizId}/explanation`);
   return data.explanation ?? data;
+}
+
+// ── 정답 제출 ──────────────────────────────────────────────────────────────────
+async function mockSubmitAnswer(quizId, answer) {
+  await sleep(300);
+  return { correct: Math.random() > 0.4, expGained: 10 };
+}
+
+async function realSubmitAnswer(quizId, answer) {
+  // answer: 1-5 (1-based)
+  return apiClient.post(`/api/v1/quizzes/${quizId}/submit`, { answer });
+}
+
+// ── 힌트 조회 ──────────────────────────────────────────────────────────────────
+async function mockGetHint(quizId) {
+  await sleep(400);
+  return { hint: '[Mock] 핵심 키워드를 중심으로 문제를 다시 읽어보세요.' };
+}
+
+async function realGetHint(quizId) {
+  return apiClient.get(`/api/v1/quizzes/${quizId}/hint`);
 }
 
 // ── Mock 콘텐츠 DB (관리자용) ──────────────────────────────────────────────────
@@ -227,26 +287,27 @@ export const aiService = {
   },
 
   /**
-   * 파일을 분석하여 과목+토픽 구조를 반환합니다.
+   * 파일을 과목에 업로드 후 추출된 개념을 Topic 형식으로 반환합니다.
    *
-   * @param {File} file - 업로드할 파일
+   * @param {File} file
    * @param {(event: ProgressEvent) => void} onProgress
-   *   event: { step: 'reading'|'analyzing'|'categorizing', status: 'active'|'done', progress: number }
+   * @param {{ subjectId?: string }} options - 실제 API 모드에서 subjectId 필수
    * @returns {Promise<{ subjectName: string, fileName: string, source: 'auto', topics: Topic[] }>}
    */
-  analyzeDocument(file, onProgress) {
+  analyzeDocument(file, onProgress, options = {}) {
     return AI_CONFIG.useMock
       ? mockAnalyzeDocument(file, onProgress)
-      : realAnalyzeDocument(file, onProgress);
+      : realAnalyzeDocument(file, onProgress, options);
   },
 
   /**
    * 특정 토픽에 대한 퀴즈 문제를 생성합니다.
    * 결과는 AppContext의 setTopicQuestions로 캐시하여 재호출을 방지하세요.
    *
-   * @param {string} topicName    - 토픽 이름 (AI 컨텍스트로 사용됨)
-   * @param {string} subjectName  - 과목 이름 (AI 컨텍스트로 사용됨)
-   * @param {{ count?: number, difficulty?: 'easy'|'medium'|'hard' }} options
+   * @param {string} topicName
+   * @param {string} subjectName
+   * @param {{ count?: number, difficulty?: number, conceptId?: string }} options
+   *   - 실제 API 모드에서 conceptId 필수
    * @returns {Promise<Question[]>}
    */
   generateQuiz(topicName, subjectName, options = {}) {
@@ -256,16 +317,40 @@ export const aiService = {
   },
 
   /**
-   * 오답 원인을 AI로 분석하여 해설 텍스트를 반환합니다. (QuizReview.md 스펙)
+   * 퀴즈 해설 텍스트를 반환합니다.
    *
-   * @param {string} question      - 문제 텍스트
-   * @param {string} userAnswerText - 사용자가 선택한 오답 텍스트
-   * @returns {Promise<string>} aiExplanation
+   * @param {string} question
+   * @param {string} userAnswerText
+   * @param {{ quizId?: string }} options - 실제 API 모드에서 quizId 필수
+   * @returns {Promise<string>}
    */
-  analyzeWrongAnswer(question, userAnswerText) {
+  analyzeWrongAnswer(question, userAnswerText, options = {}) {
     return AI_CONFIG.useMock
       ? mockAnalyzeWrongAnswer(question, userAnswerText)
-      : realAnalyzeWrongAnswer(question, userAnswerText);
+      : realAnalyzeWrongAnswer(question, userAnswerText, options);
+  },
+
+  /**
+   * 퀴즈 정답 제출 → { correct: boolean, expGained: number }
+   *
+   * @param {string} quizId
+   * @param {number} answer - 1-based (1~5)
+   */
+  submitAnswer(quizId, answer) {
+    return AI_CONFIG.useMock
+      ? mockSubmitAnswer(quizId, answer)
+      : realSubmitAnswer(quizId, answer);
+  },
+
+  /**
+   * 퀴즈 힌트 조회 → { hint: string }
+   *
+   * @param {string} quizId
+   */
+  getHint(quizId) {
+    return AI_CONFIG.useMock
+      ? mockGetHint(quizId)
+      : realGetHint(quizId);
   },
 
   /**

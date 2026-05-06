@@ -21,11 +21,11 @@ export const AUTH_CONFIG = {
   baseUrl: process.env.REACT_APP_API_URL ?? "http://bbasung.iptime.org:8080",
 
   // Mock 전환: true → Mock 데이터 사용 / false → 실제 백엔드 호출
-  useMock: true,
+  useMock: false,
 
   // 비밀번호 재설정: 백엔드 permitAll() 설정 전 임시 Mock 사용
   // 백엔드 준비 완료 시 false로 변경
-  useMockReset: true,
+  useMockReset: false,
 
   mockDelayMs: 800,
 };
@@ -114,15 +114,17 @@ async function mockSignup(email, password, name) {
 async function mockFindEmail(name) {
   await sleep(AUTH_CONFIG.mockDelayMs);
 
-  const user = MOCK_USERS.find((u) => u.name === name);
-  if (!user) {
+  const matched = MOCK_USERS.filter((u) => u.name === name);
+  if (matched.length === 0) {
     throw new Error("해당 이름으로 등록된 계정을 찾을 수 없습니다.");
   }
 
-  // 이메일 일부를 마스킹하여 반환
-  const [local, domain] = user.email.split("@");
-  const masked = local.slice(0, 2) + "***@" + domain;
-  return { email: masked };
+  const results = matched.map((u) => {
+    const [local, domain] = u.email.split("@");
+    return { email: local.slice(0, 2) + "***@" + domain };
+  });
+
+  return { success: true, results };
 }
 
 async function mockRequestReset(userId, email) {
@@ -203,14 +205,39 @@ async function realLogout() {
   await apiClient.post("/api/v1/auth/logout");
 }
 
-async function realSignup(email, password, name) {
+async function realSignup(userId, password, name, email) {
   return apiClient
-    .post("/api/v1/auth/signup", { userId: email, password, name, email })
+    .post("/api/v1/auth/signup", {
+      userId,
+      password,
+      name,
+      email: email ?? userId,
+    })
     .then(mapLoginResponse);
 }
 
 async function realFindEmail(name) {
-  return apiClient.post("/api/v1/auth/find-id", { email: name });
+  const response = await apiClient.post("/api/v1/auth/find-id", { name });
+  // 백엔드 응답 키 'accounts'에 맞춰 매핑 및 프론트엔드에서 마스킹 처리
+  const accounts = response.accounts || [];
+  const maskedResults = accounts.map((acc) => {
+    const email = acc.email || acc.userId;
+    const [local, domain] = email.split("@");
+    return {
+      fullEmail: email, // Step 2에서 사용할 전체 이메일
+      email: local.slice(0, 2) + "***@" + domain, // 화면 표시용 마스킹
+    };
+  });
+  return { success: true, results: maskedResults };
+}
+
+async function mockSendFindId(email) {
+  await sleep(AUTH_CONFIG.mockDelayMs);
+  return { success: true, message: `${email} 이메일 정보가 확인되었습니다.` };
+}
+
+async function realSendFindId(email) {
+  return apiClient.post("/api/v1/auth/send-find-id", { userId: email });
 }
 
 async function realRequestReset(userId, email) {
@@ -288,16 +315,26 @@ export const authService = {
       : realLogin(email, password);
   },
 
-  /** 회원가입 → { token, user } */
-  signup(email, password, name) {
+  /** 회원가입 → { token, user }
+   * @param {string} userId   - 로그인 아이디 (이메일 또는 별도 ID)
+   * @param {string} password
+   * @param {string} name
+   * @param {string} [email]  - 생략 시 userId를 email로 사용
+   */
+  signup(userId, password, name, email) {
     return AUTH_CONFIG.useMock
-      ? mockSignup(email, password, name)
-      : realSignup(email, password, name);
+      ? mockSignup(email ?? userId, password, name)
+      : realSignup(userId, password, name, email);
   },
 
-  /** 이메일 찾기 → { email } */
+  /** [Step 1] 이름으로 마스킹 이메일 목록 조회 → { success, results: [{ email }] } */
   findEmail(name) {
     return AUTH_CONFIG.useMock ? mockFindEmail(name) : realFindEmail(name);
+  },
+
+  /** [Step 2] 선택한 이메일로 아이디 찾기 최종 확인/발송 → { success, message } */
+  sendFindId(email) {
+    return AUTH_CONFIG.useMock ? mockSendFindId(email) : realSendFindId(email);
   },
 
   /** 비밀번호 재설정 1단계: 아이디+이메일 확인 후 코드 발송 */

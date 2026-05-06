@@ -1,4 +1,4 @@
-# AIDucation v0.7
+# AIDucation v0.8
 
 AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동으로 퀴즈를 생성하고, 학습 진도를 추적합니다.
 
@@ -27,6 +27,52 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 - **콘텐츠 관리** — 업로드 문서 및 퀴즈 관리
 - **AI 모니터링** — AI 응답 품질 추적
 - **시스템 설정** — 플랫폼 설정
+
+---
+
+## 2026-05-06 작업 현황
+
+### API 연결 설계 전면 적용 (`API_DESIGN.md` 기반)
+
+#### 신규 서비스 레이어 3개 추가
+
+| 파일 | 역할 | 주요 API |
+|------|------|---------|
+| `subjectService.js` | 과목/파일/개념 관리 | `GET/POST/PATCH/DELETE /api/v1/subjects`, 파일 업로드, 개념 조회 |
+| `userService.js` | 사용자/대시보드/랭킹 | `GET /api/v1/users/me`, 대시보드, 랭킹, 오답노트 |
+| `reviewService.js` | 복습/알림 | `GET /api/v1/reviews/today`, 복습 완료, 푸시 알림 구독 |
+
+#### 기존 서비스 실제 API 경로 전면 교체
+
+- **`aiService.js`** — 구 경로(`/api/ai/*`) → 개념 기반 신규 경로로 전환
+  - 파일 업로드: `POST /api/v1/subjects/{subjectId}/files`
+  - 개념 조회: `GET /api/v1/subjects/{subjectId}/concepts`
+  - 퀴즈 생성: `POST /api/v1/concepts/{conceptId}/generate-quiz`
+  - 정답 제출: `POST /api/v1/quizzes/{quizId}/submit` (신규)
+  - 힌트/해설: `GET /api/v1/quizzes/{quizId}/hint|explanation` (신규)
+- **`authService.js`** — `findEmail` body 수정, `signup` 파라미터 분리(`userId`/`email`)
+- **`apiClient.js`** — `PUBLIC_AUTH_PATHS`에 `/api/v1/auth/send-find-id` 추가
+
+### 아이디 찾기 2단계 프로세스 재설계
+
+기존 단순 조회 → **2단계 검증** 방식으로 개선 (동명이인 대응)
+
+```
+[input]  이름 입력 → POST /api/v1/auth/find-id
+    ↓
+[list]   마스킹 이메일 목록 표시 → 본인 이메일 클릭
+    ↓
+[complete] POST /api/v1/auth/send-find-id → 완료
+```
+
+- **`LoginPage.jsx`** — 3단계 UI 상태(`findEmailStep`: input / list / complete) 구현
+- **`LoginPage.css`** — 이메일 선택 버튼 스타일 추가
+
+### 버그 수정
+
+- `realSendFindId` 경로 앞 `/` 누락 수정 (서버 연결 불가 오류)
+- 이메일 선택 시 마스킹 이메일 대신 `fullEmail`(실제 이메일) 전송하도록 수정
+- `authService.js` `realFindEmail` 함수 문법 오류(`name))`) 수정
 
 ---
 
@@ -107,8 +153,12 @@ src/
 ├── context/          # AppContext (전역 상태)
 ├── pages/            # 각 라우트 페이지
 └── services/
-    ├── aiService.js   # AI 분석 & 퀴즈 생성
-    └── authService.js # 인증
+    ├── apiClient.js      # 공통 HTTP 클라이언트 (JWT 자동 주입, 토큰 갱신)
+    ├── authService.js    # 인증 (로그인, 회원가입, 아이디/비밀번호 찾기)
+    ├── aiService.js      # AI 분석 & 퀴즈 생성/제출/힌트
+    ├── subjectService.js # 과목/파일/개념 관리
+    ├── userService.js    # 사용자 정보, 대시보드, 랭킹, 오답노트
+    └── reviewService.js  # 복습 스케줄, 푸시 알림
 ```
 
 ---

@@ -44,6 +44,10 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  // 이메일 찾기: 'input'(이름 입력) | 'list'(이메일 선택) | 'complete'(완료)
+  const [findEmailStep, setFindEmailStep] = useState("input");
+  const [foundEmails, setFoundEmails] = useState([]);
+  const [selectedEmail, setSelectedEmail] = useState("");
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -115,8 +119,9 @@ const LoginPage = () => {
     setLoading(true);
     try {
       if (mode === "findEmail") {
-        const result = await authService.findEmail(form.email);
-        setSuccessMsg(`등록된 이메일: ${result.email}`);
+        const result = await authService.findEmail(form.name);
+        setFoundEmails(result.results ?? []);
+        setFindEmailStep("list");
       } else if (mode === "findPassword") {
         if (findPasswordStep === "email") {
           const result = await authService.requestReset(
@@ -220,6 +225,9 @@ const LoginPage = () => {
     setMode(findMode);
     setError("");
     setSuccessMsg("");
+    setFindEmailStep("input");
+    setFoundEmails([]);
+    setSelectedEmail("");
     setForm({
       name: "",
       userId: "",
@@ -234,6 +242,9 @@ const LoginPage = () => {
   const backToLogin = () => {
     setMode("login");
     setFindPasswordStep("email");
+    setFindEmailStep("input");
+    setFoundEmails([]);
+    setSelectedEmail("");
     setError("");
     setSuccessMsg("");
     setForm({
@@ -245,6 +256,21 @@ const LoginPage = () => {
       newPassword: "",
       confirmPassword: "",
     });
+  };
+
+  const handleSelectEmail = async (email) => {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await authService.sendFindId(email);
+      setSelectedEmail(email);
+      setSuccessMsg(result?.message ?? "이메일 정보가 확인되었습니다.");
+      setFindEmailStep("complete");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -339,8 +365,8 @@ const LoginPage = () => {
 
         {/* 폼 */}
         <form className="login-page__form" onSubmit={handleSubmit} noValidate>
-          {/* 이름 (회원가입 / 이메일 찾기) */}
-          {(mode === "signup" || mode === "findEmail") && (
+          {/* 이름 (회원가입 / 이메일 찾기 input 단계만) */}
+          {(mode === "signup" || (mode === "findEmail" && findEmailStep === "input")) && (
             <div className="login-page__field animate-fade-in">
               <label htmlFor="input-name" className="login-page__label">
                 이름
@@ -562,27 +588,82 @@ const LoginPage = () => {
             </div>
           )}
 
-          {/* 제출 버튼 */}
-          <button
-            id="btn-submit"
-            type="submit"
-            className="login-page__submit"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="login-page__spinner" />
-            ) : mode === "findPassword" ? (
-              {
-                email: "코드 발송",
-                code: "인증하기",
-                password: "비밀번호 변경",
-              }[findPasswordStep]
-            ) : (
-              { login: "로그인", signup: "회원가입", findEmail: "이메일 찾기" }[
-                mode
-              ]
-            )}
-          </button>
+          {/* [이메일 찾기 - list] 이메일 선택 화면 */}
+          {mode === "findEmail" && findEmailStep === "list" && (
+            <div className="login-page__email-result animate-fade-in">
+              {foundEmails.length > 0 ? (
+                <>
+                  <p className="login-page__result-title">
+                    본인의 이메일을 선택해주세요.
+                  </p>
+                  <ul className="login-page__email-list">
+                    {foundEmails.map((item, idx) => (
+                      <li key={idx}>
+                        <button
+                          type="button"
+                          className="login-page__email-btn"
+                          onClick={() => handleSelectEmail(item.fullEmail ?? item.email)}
+                          disabled={loading}
+                        >
+                          <Mail size={14} />
+                          <span>{item.email}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="login-page__result-empty">
+                  해당 정보로 등록된 계정이 없습니다.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* [이메일 찾기 - complete] 완료 화면 */}
+          {mode === "findEmail" && findEmailStep === "complete" && (
+            <div className="login-page__email-result animate-fade-in">
+              <p className="login-page__result-title">
+                이메일 정보가 확인되었습니다.
+              </p>
+              {successMsg && (
+                <div className="login-page__success" role="status">
+                  {successMsg}
+                </div>
+              )}
+              <button
+                type="button"
+                className="login-page__submit"
+                onClick={backToLogin}
+              >
+                로그인으로 이동
+              </button>
+            </div>
+          )}
+
+          {/* 제출 버튼 (input 단계에서만 표시) */}
+          {!(mode === "findEmail" && findEmailStep !== "input") && (
+            <button
+              id="btn-submit"
+              type="submit"
+              className="login-page__submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="login-page__spinner" />
+              ) : mode === "findPassword" ? (
+                {
+                  email: "코드 발송",
+                  code: "인증하기",
+                  password: "비밀번호 변경",
+                }[findPasswordStep]
+              ) : (
+                { login: "로그인", signup: "회원가입", findEmail: "이메일 찾기" }[
+                  mode
+                ]
+              )}
+            </button>
+          )}
         </form>
 
         {/* 아이디/비밀번호 찾기 링크 (로그인 모드에서만) */}
