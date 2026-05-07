@@ -4,6 +4,7 @@ import { Button, Badge } from '../../atoms';
 import { useApp } from '../../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { aiService } from '../../../services/aiService';
+import { subjectService } from '../../../services/subjectService';
 import './FileUploader.css';
 
 const SUPPORTED_TYPES = ['.pdf', '.txt', '.docx', '.md', '.pptx'];
@@ -64,14 +65,22 @@ const FileUploader = ({ onAnalysisComplete }) => {
 
     try {
       const firstFile = files[0];
+
+      // Step 1: 과목 먼저 생성하여 subjectId 확보
+      const subjectName = customSubjectName.trim() || firstFile.file.name.replace(/\.[^.]+$/, '');
+      const createdSubject = await subjectService.createSubject(subjectName);
+      const subjectId = createdSubject.subjectId;
+
+      // Step 2: 파일 업로드 + 폴링으로 AI 분석 완료 대기
       const newSubject = await aiService.analyzeDocument(
         firstFile.file,
-        (progress) => setProgressInfo(progress)
+        (progress) => setProgressInfo(progress),
+        { subjectId }
       );
 
       // 사용자가 직접 입력한 과목명이 있다면 덮어쓰기
       if (customSubjectName.trim()) {
-        newSubject.name = customSubjectName.trim();
+        newSubject.subjectName = customSubjectName.trim();
       }
 
       setFiles(prev => prev.map(f => ({ ...f, status: 'done' })));
@@ -79,7 +88,7 @@ const FileUploader = ({ onAnalysisComplete }) => {
       addNotification({
         type: 'info',
         title: '파일 분석 완료',
-        message: `"${newSubject.name}"에서 ${newSubject.topics.length}개 주제를 발견했습니다.`,
+        message: `"${newSubject.subjectName}"에서 ${newSubject.topics.length}개 주제를 발견했습니다.`,
       });
 
       // SubjectPage로 이동하며 pending subject 전달

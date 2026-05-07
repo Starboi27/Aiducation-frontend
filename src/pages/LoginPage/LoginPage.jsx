@@ -573,8 +573,8 @@ const LoginPage = () => {
             </div>
           )}
 
-          {/* 성공 메시지 */}
-          {successMsg && (
+          {/* 성공 메시지 (complete 단계는 별도 UI로 표시) */}
+          {successMsg && !(mode === "findEmail" && findEmailStep === "complete") && (
             <div className="login-page__success animate-fade-in" role="status">
               {successMsg}
             </div>
@@ -624,13 +624,8 @@ const LoginPage = () => {
           {mode === "findEmail" && findEmailStep === "complete" && (
             <div className="login-page__email-result animate-fade-in">
               <p className="login-page__result-title">
-                이메일 정보가 확인되었습니다.
+                {successMsg || "이메일 정보가 확인되었습니다."}
               </p>
-              {successMsg && (
-                <div className="login-page__success" role="status">
-                  {successMsg}
-                </div>
-              )}
               <button
                 type="button"
                 className="login-page__submit"

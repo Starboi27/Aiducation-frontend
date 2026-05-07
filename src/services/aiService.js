@@ -129,7 +129,7 @@ async function mockGenerateQuiz(topicName, _subjectName, options) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 파일을 subject에 업로드하고, 추출된 개념(concepts)을 Topic 형식으로 반환.
+ * 파일을 subject에 업로드한 뒤 AI 콜백이 개념 데이터를 채울 때까지 폴링.
  * @param {File}   file
  * @param {function} onProgress
  * @param {{ subjectId: string }} options - 실제 API 모드에서 subjectId 필수
@@ -138,32 +138,44 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
   const { subjectId } = options;
   if (!subjectId) throw new Error('실제 API 모드에서는 options.subjectId가 필요합니다.');
 
+  // Step 1: 파일 업로드 → 백엔드가 AI 서버에 분석 요청 후 즉시 200 반환
   onProgress?.({ step: 'reading', status: 'active', progress: 0 });
-
   const formData = new FormData();
   formData.append('file', file);
-
-  // 파일 업로드 → POST /api/v1/subjects/{subjectId}/files
   await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
-  onProgress?.({ step: 'analyzing', status: 'active', progress: 50 });
+  onProgress?.({ step: 'analyzing', status: 'active', progress: 33 });
 
-  // 개념 목록 조회 → GET /api/v1/subjects/{subjectId}/concepts
-  const concepts = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
-  onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
+  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 30회 × 3초 = 90초)
+  const MAX_ATTEMPTS = 30;
+  const INTERVAL_MS = 3000;
 
-  return {
-    subjectName: file.name.replace(/\.[^.]+$/, ''),
-    fileName: file.name,
-    source: 'auto',
-    topics: (concepts ?? []).map((c, i) => ({
-      id: c.conceptId ?? c.id,
-      name: c.conceptName ?? c.name,
-      description: c.description ?? '',
-      quizCount: c.quizCount ?? 0,
-      color: TOPIC_COLORS[i % TOPIC_COLORS.length],
-      questions: [],
-    })),
-  };
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    await sleep(INTERVAL_MS);
+
+    const concepts = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
+    // 진행률: 40% 에서 시작해 최대 90%까지 선형 증가
+    const progress = 40 + Math.min(50, Math.floor((i / MAX_ATTEMPTS) * 50));
+    onProgress?.({ step: 'categorizing', status: 'active', progress });
+
+    if (concepts && concepts.length > 0) {
+      onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
+      return {
+        subjectName: file.name.replace(/\.[^.]+$/, ''),
+        fileName: file.name,
+        source: 'auto',
+        topics: concepts.map((c, idx) => ({
+          id: c.conceptId ?? c.id,
+          name: c.conceptName ?? c.name,
+          description: c.description ?? '',
+          quizCount: c.quizCount ?? 0,
+          color: TOPIC_COLORS[idx % TOPIC_COLORS.length],
+          questions: [],
+        })),
+      };
+    }
+  }
+
+  throw new Error('AI 분석 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
 }
 
 /**
