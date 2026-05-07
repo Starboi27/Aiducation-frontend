@@ -30,6 +30,34 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ---
 
+## 2026-05-07 작업 현황
+
+### AI 콜백 비동기 아키텍처 구현 (`설계서.md` 기반)
+
+기존 동기 방식(업로드 → 즉시 개념 조회)에서 **비동기 콜백 + 폴링** 구조로 전환.
+
+```
+[Step 1] subjectService.createSubject() → subjectId 확보
+    ↓
+[Step 2] POST /api/v1/subjects/{id}/files → 백엔드가 AI 서버에 분석 요청 후 즉시 200
+    ↓
+[Step 3] AI 서버가 분석 완료 후 POST /api/v1/internal/callback/concepts-extracted 호출
+    ↓
+[Step 4] GET /api/v1/subjects/{id}/concepts 폴링 (3초 간격, 최대 30회)
+         → 데이터 수신 시 SubjectPage로 이동
+```
+
+#### 변경 파일
+
+- **`aiService.js`** — `realAnalyzeDocument`를 폴링 루프로 교체
+  - 파일 업로드 후 개념 데이터 폴링 (최대 90초 대기)
+  - `onProgress` 진행률: 0% → 33% (업로드) → 40~90% (폴링 중) → 100% (완료)
+- **`FileUploader.jsx`** — 분석 시작 전 `subjectService.createSubject()` 선행 호출
+  - `subjectId`를 `analyzeDocument`에 `options`로 전달
+  - 알림 메시지 필드명 `name` → `subjectName` 수정
+
+---
+
 ## 2026-05-06 작업 현황
 
 ### API 연결 설계 전면 적용 (`API_DESIGN.md` 기반)
