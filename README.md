@@ -1,4 +1,4 @@
-# AIDucation v0.7
+# AIDucation v0.8
 
 AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동으로 퀴즈를 생성하고, 학습 진도를 추적합니다.
 
@@ -18,15 +18,71 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 - **복습** — 오답 복습 및 해설 제공
 - **리포트** — 학습 성과 분석 및 시각화
 - **랭킹** — 사용자 간 학습량 비교
-- **마이페이지** — 프로필, 학습 기록
+- **마이페이지** — 프로필 수정, 비밀번호 변경, 회원 탈퇴
 
 #### 관리자 페이지 (`/admin`)
 
-- **대시보드** — 전체 현황 통계
-- **사용자 관리** — 유저 목록, 권한 관리
-- **콘텐츠 관리** — 업로드 문서 및 퀴즈 관리
-- **AI 모니터링** — AI 응답 품질 추적
-- **시스템 설정** — 플랫폼 설정
+- **대시보드** — 전체 현황 통계 (실 API 연동)
+- **사용자 관리** — 유저 목록, 정지/활성화/삭제
+- **콘텐츠 관리** — 파일/개념 탭 분리, 개념 승인·거절
+- **AI 모니터링** — TaskQueue 기반 AI 작업 현황 추적
+- **시스템 설정** — 레벨별 경험치·난이도 보상 편집
+
+---
+
+## 2026-05-13 작업 현황 (v0.8)
+
+### API 명세 v3 전면 반영
+
+#### 버그 수정 (4건)
+
+| 파일 | 수정 내용 |
+|------|-----------|
+| `aiService.js` | admin contents 경로 오타 수정 (`/api/admin/contents` → `/api/v1/admin/contents`) |
+| `aiService.js` | AI 로그 엔드포인트 교체 (`/api/admin/ai-logs` → `/api/v1/admin/tasks`) |
+| `authService.js` | 비밀번호 재설정 verify/complete 미존재 엔드포인트 → `useMockReset: true` 고정 |
+| `userService.js` | 존재하지 않는 `GET /api/v1/users/me` → localStorage 캐시 사용으로 변경 |
+
+#### 신규 기능 (서비스 레이어)
+
+- **`adminService.js` 신규 생성** — 관리자 전용 18개 엔드포인트 Mock/Real 전체 구현
+  - 사용자 관리: 목록/단건/상태변경/삭제/레벨분포
+  - 퀴즈 관리: 전체조회/삭제/난이도현황
+  - 콘텐츠 관리: 파일·개념 목록, 개념 승인·거절·삭제
+  - AI 작업큐: TaskQueueResponse 형식 (`summary` + `tasks[]`)
+  - 통계: 리포트·정확도
+  - 설정: 레벨별 필요 경험치, 난이도별 경험치 보상 업데이트
+- **`aiService.js`** — `submitAll`, `getQuizzes`, `getHint`, `getQuiz` 추가
+  - 퀴즈 단건 제출 → `POST /api/v1/quizzes/submit-all` 일괄 제출로 교체
+  - `GET /api/v1/quizzes/{quizId}` 신규 구현
+- **`authService.js`** — `mailCheck` (`POST /oauth/mail_check`) 추가
+- **`userService.js`** — `updateProfile`, `updatePassword`, `deleteAccount` 추가
+- **`reviewService.js`** — `getAlarmStatus`, `toggleAlarm` (`GET/PUT /api/v1/notifications/alarm`) 추가
+
+#### 관리자 페이지 5개 전면 재구성
+
+| 페이지 | 변경 내용 |
+|--------|-----------|
+| `AdminDashboard` | `adminService.getReport()` 실 데이터 연동, 최근 작업 로그 표시 |
+| `AdminUserManagement` | `adminService.getUsers()` 전환, 정지/활성화/삭제 기능 완성 |
+| `AdminAIMonitor` | TaskItem 포맷 기반 재작성 (작업 유형·상태·실패 원인) |
+| `AdminContentManagement` | 파일/대기 개념 2탭 구조, 승인·거절 기능 |
+| `AdminSettings` | 레벨·난이도 경험치 인라인 편집 및 일괄 저장 |
+
+#### 마이페이지 계정 설정 추가
+
+- 프로필(이름·이메일) 인라인 편집
+- 비밀번호 변경 폼 (현재 비밀번호 확인)
+- 회원 탈퇴 (경고 문구 + 확인 후 처리)
+
+#### Mock 데이터 스키마 동기화
+
+| 항목 | 변경 내용 |
+|------|-----------|
+| `MOCK_DASHBOARD` | 스펙 `Dashboard` 스키마 적용 (`WeeklyStats`, `GrowthIndicator`, `WeakTypeStats[]`) |
+| `MOCK_INCORRECTS` | `IncorrectList { totalCount, incorrects[] }` 형식, `options` → `examples` |
+| `MOCK_RANKING` | `RankingList { totalCount, rankings[] }` 형식, `name` 필드 제거 |
+| 랭킹 `page` 기본값 | `1` → `0` (스펙 기본값 일치) |
 
 ---
 
@@ -183,10 +239,11 @@ src/
 └── services/
     ├── apiClient.js      # 공통 HTTP 클라이언트 (JWT 자동 주입, 토큰 갱신)
     ├── authService.js    # 인증 (로그인, 회원가입, 아이디/비밀번호 찾기)
-    ├── aiService.js      # AI 분석 & 퀴즈 생성/제출/힌트
+    ├── aiService.js      # AI 분석 & 퀴즈 생성/제출/힌트/단건조회
     ├── subjectService.js # 과목/파일/개념 관리
     ├── userService.js    # 사용자 정보, 대시보드, 랭킹, 오답노트
-    └── reviewService.js  # 복습 스케줄, 푸시 알림
+    ├── reviewService.js  # 복습 스케줄, 푸시 알림, 메일 알람
+    └── adminService.js   # 관리자 전용 (사용자·콘텐츠·퀴즈·통계·설정)
 ```
 
 ---
