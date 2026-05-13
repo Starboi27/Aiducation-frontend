@@ -18,12 +18,16 @@ import {
   BarChart3,
   Pencil,
   Save,
+  Settings,
+  Lock,
+  Trash2,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { Avatar, Badge, ProgressBar, Button } from "../../components/atoms";
 import { Card, ExpCard, StreakDisplay } from "../../components/molecules";
 import { getRank } from "../../components/molecules/ExpCard/ExpCard";
 import { useNavigate } from "react-router-dom";
+import { userService } from "../../services/userService";
 import "./MyPage.css";
 
 // ── 업적 정의 ──
@@ -181,7 +185,62 @@ const MyPage = () => {
   const navigate = useNavigate();
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalDraft, setGoalDraft] = useState(dailyGoal);
-  const dailyProgress = 42; // 오늘 학습한 시간 (분) - mock
+  const dailyProgress = 42;
+
+  // 프로필 편집
+  const [profileDraft, setProfileDraft] = useState({ name: user?.name ?? '', email: user?.email ?? '' });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState('');
+
+  // 비밀번호 변경
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [isChangingPw, setIsChangingPw] = useState(false);
+  const [pwMsg, setPwMsg] = useState('');
+
+  const handleProfileSave = async () => {
+    setProfileSaving(true);
+    setProfileMsg('');
+    try {
+      await userService.updateProfile(profileDraft.name, profileDraft.email);
+      setProfileMsg('프로필이 저장되었습니다.');
+      setIsEditingProfile(false);
+      setTimeout(() => setProfileMsg(''), 3000);
+    } catch (err) {
+      setProfileMsg(`저장 실패: ${err.message}`);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwMsg('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    setIsChangingPw(true);
+    setPwMsg('');
+    try {
+      await userService.updatePassword(pwForm.currentPassword, pwForm.newPassword);
+      setPwMsg('비밀번호가 변경되었습니다.');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setPwMsg(''), 3000);
+    } catch (err) {
+      setPwMsg(`변경 실패: ${err.message}`);
+    } finally {
+      setIsChangingPw(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('정말 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    try {
+      await userService.deleteAccount();
+      navigate('/login');
+    } catch (err) {
+      alert(`탈퇴 실패: ${err.message}`);
+    }
+  };
 
   const rank = getRank(user.totalExp);
   const heatmapData = useMemo(() => generateHeatmapData(), []);
@@ -624,6 +683,103 @@ const MyPage = () => {
           </Card>
         </div>
       </div>
+
+      {/* ── 계정 설정 ── */}
+      <section className="mypage__account-settings">
+        {/* 프로필 편집 */}
+        <Card
+          title="프로필 편집"
+          headerAction={
+            !isEditingProfile ? (
+              <button className="mypage__goal-edit-btn" onClick={() => { setProfileDraft({ name: user?.name ?? '', email: user?.email ?? '' }); setIsEditingProfile(true); }}>
+                <Pencil size={14} />
+              </button>
+            ) : null
+          }
+        >
+          {profileMsg && <p className="mypage__account-msg">{profileMsg}</p>}
+          {isEditingProfile ? (
+            <div className="mypage__account-form">
+              <div className="mypage__account-field">
+                <label>이름</label>
+                <input
+                  className="mypage__account-input"
+                  value={profileDraft.name}
+                  onChange={(e) => setProfileDraft((p) => ({ ...p, name: e.target.value }))}
+                />
+              </div>
+              <div className="mypage__account-field">
+                <label>이메일</label>
+                <input
+                  className="mypage__account-input"
+                  type="email"
+                  value={profileDraft.email}
+                  onChange={(e) => setProfileDraft((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div className="mypage__account-actions">
+                <Button variant="primary" size="sm" onClick={handleProfileSave} disabled={profileSaving}>
+                  <Save size={14} /> {profileSaving ? '저장 중...' : '저장'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setIsEditingProfile(false)}>취소</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mypage__account-info">
+              <div className="mypage__account-row"><User size={14} /><span>이름</span><strong>{user?.name}</strong></div>
+              <div className="mypage__account-row"><Settings size={14} /><span>이메일</span><strong>{user?.email}</strong></div>
+            </div>
+          )}
+        </Card>
+
+        {/* 비밀번호 변경 */}
+        <Card title="비밀번호 변경">
+          {pwMsg && <p className="mypage__account-msg">{pwMsg}</p>}
+          <div className="mypage__account-form">
+            <div className="mypage__account-field">
+              <label>현재 비밀번호</label>
+              <input
+                className="mypage__account-input"
+                type="password"
+                placeholder="현재 비밀번호"
+                value={pwForm.currentPassword}
+                onChange={(e) => setPwForm((p) => ({ ...p, currentPassword: e.target.value }))}
+              />
+            </div>
+            <div className="mypage__account-field">
+              <label>새 비밀번호</label>
+              <input
+                className="mypage__account-input"
+                type="password"
+                placeholder="새 비밀번호"
+                value={pwForm.newPassword}
+                onChange={(e) => setPwForm((p) => ({ ...p, newPassword: e.target.value }))}
+              />
+            </div>
+            <div className="mypage__account-field">
+              <label>비밀번호 확인</label>
+              <input
+                className="mypage__account-input"
+                type="password"
+                placeholder="새 비밀번호 확인"
+                value={pwForm.confirmPassword}
+                onChange={(e) => setPwForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+              />
+            </div>
+            <Button variant="primary" size="sm" onClick={handlePasswordChange} disabled={isChangingPw}>
+              <Lock size={14} /> {isChangingPw ? '변경 중...' : '비밀번호 변경'}
+            </Button>
+          </div>
+        </Card>
+
+        {/* 계정 삭제 */}
+        <Card title="계정 탈퇴">
+          <p className="mypage__danger-desc">탈퇴 시 모든 학습 데이터가 영구적으로 삭제됩니다.</p>
+          <Button variant="danger" size="sm" onClick={handleDeleteAccount}>
+            <Trash2 size={14} /> 회원 탈퇴
+          </Button>
+        </Card>
+      </section>
     </div>
   );
 };

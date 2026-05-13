@@ -42,53 +42,64 @@ const MOCK_ME = {
 };
 
 const MOCK_DASHBOARD = {
-  weeklyStats: [
-    { day: '월', solved: 12, correct: 9 },
-    { day: '화', solved: 8,  correct: 6 },
-    { day: '수', solved: 15, correct: 13 },
-    { day: '목', solved: 5,  correct: 4 },
-    { day: '금', solved: 20, correct: 17 },
-    { day: '토', solved: 3,  correct: 2 },
-    { day: '일', solved: 10, correct: 8 },
+  userName: '이창현',
+  weeklyStats: { thisWeekRate: 0.82, lastWeekRate: 0.75, changeRate: 0.07 },
+  solvedCount: 73,
+  correctRate: 0.78,
+  growthIndicator: {
+    level: 12,
+    exp: 450,
+    totalExp: 12450,
+    nextLevelExp: 1000,
+    grade: 'Silver',
+    progressRate: 0.45,
+  },
+  weakTypes: [
+    { subjectName: '메모리 관리',   incorrectCount: 5, totalAttempted: 12, incorrectRate: 0.42 },
+    { subjectName: 'CPU 스케줄링', incorrectCount: 3, totalAttempted: 10, incorrectRate: 0.30 },
+    { subjectName: 'SQL JOIN',      incorrectCount: 2, totalAttempted: 8,  incorrectRate: 0.25 },
   ],
-  accuracy: 78,
-  weakTypes: ['메모리 관리', 'CPU 스케줄링', 'SQL JOIN'],
   recentNotifications: [
-    { id: 'noti_001', message: '오늘의 복습 5문제가 준비됐어요!', createdAt: '2024-03-23T08:00:00Z', read: false },
-    { id: 'noti_002', message: '"운영체제" 과목에 새 개념이 추가됐어요.', createdAt: '2024-03-22T18:30:00Z', read: false },
+    { type: 'REVIEW',   message: '오늘의 복습 5문제가 준비됐어요!',        createdAt: '2024-03-23T08:00:00Z', read: false },
+    { type: 'CONCEPT',  message: '"운영체제" 과목에 새 개념이 추가됐어요.', createdAt: '2024-03-22T18:30:00Z', read: false },
+  ],
+  unreadNotificationCount: 2,
+};
+
+const MOCK_RANKING = {
+  totalCount: 5,
+  rankings: [
+    { rank: 1, userId: 'user_001', level: 12, totalExp: 12450 },
+    { rank: 2, userId: 'user_002', level: 10, totalExp: 9820  },
+    { rank: 3, userId: 'user_003', level: 9,  totalExp: 8640  },
+    { rank: 4, userId: 'user_004', level: 8,  totalExp: 7210  },
+    { rank: 5, userId: 'user_005', level: 7,  totalExp: 6050  },
   ],
 };
 
-const MOCK_RANKING = [
-  { rank: 1, userId: 'user_001', name: '이창현', level: 12, totalExp: 12450 },
-  { rank: 2, userId: 'user_002', name: '김민수', level: 10, totalExp: 9820  },
-  { rank: 3, userId: 'user_003', name: '최유리', level: 9,  totalExp: 8640  },
-  { rank: 4, userId: 'user_004', name: '정해인', level: 8,  totalExp: 7210  },
-  { rank: 5, userId: 'user_005', name: '박서준', level: 7,  totalExp: 6050  },
-];
-
-const MOCK_INCORRECTS = [
-  {
-    quizId: 'q_001',
-    conceptName: '메모리 관리',
-    question: '다음 중 페이지 교체 알고리즘이 아닌 것은?',
-    options: ['FIFO', 'LRU', 'OPT', 'RR', 'LFU'],
-    myAnswer: 4,
-    correctAnswer: 4,
-    explanation: 'RR(Round Robin)은 CPU 스케줄링 알고리즘이며, 페이지 교체 알고리즘이 아닙니다.',
-    solvedAt: '2024-03-22T14:30:00Z',
-  },
-  {
-    quizId: 'q_002',
-    conceptName: 'SQL 기초',
-    question: 'INNER JOIN과 OUTER JOIN의 차이점은?',
-    options: ['속도 차이', '조인 조건 유무', '매칭되지 않는 행 포함 여부', '테이블 수 제한', '인덱스 사용 여부'],
-    myAnswer: 1,
-    correctAnswer: 3,
-    explanation: 'OUTER JOIN은 한쪽 테이블에 매칭되는 데이터가 없어도 결과에 포함시킵니다.',
-    solvedAt: '2024-03-23T09:15:00Z',
-  },
-];
+const MOCK_INCORRECTS = {
+  totalCount: 2,
+  incorrects: [
+    {
+      quizId: 1,
+      conceptName: '메모리 관리',
+      question: '다음 중 페이지 교체 알고리즘이 아닌 것은?',
+      examples: ['FIFO', 'LRU', 'OPT', 'RR', 'LFU'],
+      correctAnswer: 4,
+      explanation: 'RR(Round Robin)은 CPU 스케줄링 알고리즘이며, 페이지 교체 알고리즘이 아닙니다.',
+      difficulty: 2,
+    },
+    {
+      quizId: 2,
+      conceptName: 'SQL 기초',
+      question: 'INNER JOIN과 OUTER JOIN의 차이점은?',
+      examples: ['속도 차이', '조인 조건 유무', '매칭되지 않는 행 포함 여부', '테이블 수 제한', '인덱스 사용 여부'],
+      correctAnswer: 3,
+      explanation: 'OUTER JOIN은 한쪽 테이블에 매칭되는 데이터가 없어도 결과에 포함시킵니다.',
+      difficulty: 3,
+    },
+  ],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MOCK IMPLEMENTATIONS
@@ -103,23 +114,60 @@ async function mockGetDashboard() {
   return { ...MOCK_DASHBOARD };
 }
 
-async function mockGetRanking(page = 1) {
+async function mockGetRanking(page = 0) {
   await sleep(USER_CONFIG.mockDelayMs);
-  return { ranking: MOCK_RANKING, page, totalPage: 1 };
+  return { ...MOCK_RANKING };
 }
 
 async function mockGetIncorrects() {
   await sleep(USER_CONFIG.mockDelayMs);
-  return [...MOCK_INCORRECTS];
+  return { ...MOCK_INCORRECTS };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOCK IMPLEMENTATIONS (profile, password, delete)
+// ─────────────────────────────────────────────────────────────────────────────
+async function mockUpdateProfile(name, email) {
+  await sleep(USER_CONFIG.mockDelayMs);
+  const stored = localStorage.getItem('user_info');
+  if (stored) {
+    const user = JSON.parse(stored);
+    user.name = name;
+    user.email = email;
+    localStorage.setItem('user_info', JSON.stringify(user));
+  }
+  return { resultCode: 200 };
+}
+
+async function mockUpdatePassword(_currentPassword, _newPassword) {
+  await sleep(USER_CONFIG.mockDelayMs);
+  return { resultCode: 200 };
+}
+
+async function mockDeleteAccount() {
+  await sleep(USER_CONFIG.mockDelayMs);
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user_info');
+  return { resultCode: 200 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REAL API IMPLEMENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
-const realGetMe         = ()         => apiClient.get('/api/v1/users/me');
+// spec에 GET /api/v1/users/me 없음 → localStorage 캐시 사용
+function realGetMe() {
+  const stored = localStorage.getItem('user_info');
+  if (stored) return Promise.resolve(JSON.parse(stored));
+  return Promise.reject(new Error('사용자 정보가 없습니다. 다시 로그인해주세요.'));
+}
 const realGetDashboard  = ()         => apiClient.get('/api/v1/users/me/dashboard');
-const realGetRanking    = (page = 1) => apiClient.get(`/api/v1/ranking?page=${page}`);
+const realGetRanking    = (page = 0) => apiClient.get(`/api/v1/ranking?page=${page}`);
 const realGetIncorrects = ()         => apiClient.get('/api/v1/users/me/incorrects');
+
+const realUpdateProfile  = (name, email)                       => apiClient.patch('/api/v1/users/me/profile', { name, email });
+const realUpdatePassword = (currentPassword, newPassword)      => apiClient.patch('/api/v1/users/me/password', { currentPassword, newPassword });
+const realDeleteAccount  = ()                                  => apiClient.delete('/api/v1/users/me');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
@@ -141,12 +189,37 @@ export const userService = {
    * 전체 랭킹 조회 → { ranking: RankingEntry[], page, totalPage }
    * @param {number} [page=1]
    */
-  getRanking(page = 1) {
+  getRanking(page = 0) {
     return isMockEnabled() ? mockGetRanking(page) : realGetRanking(page);
   },
 
   /** 내 오답 노트 조회 → IncorrectItem[] */
   getIncorrects() {
     return isMockEnabled() ? mockGetIncorrects() : realGetIncorrects();
+  },
+
+  /**
+   * 프로필(이름·이메일) 수정 → { resultCode }
+   * @param {string} name
+   * @param {string} email
+   */
+  updateProfile(name, email) {
+    return isMockEnabled() ? mockUpdateProfile(name, email) : realUpdateProfile(name, email);
+  },
+
+  /**
+   * 비밀번호 변경 → { resultCode }
+   * @param {string} currentPassword
+   * @param {string} newPassword
+   */
+  updatePassword(currentPassword, newPassword) {
+    return isMockEnabled()
+      ? mockUpdatePassword(currentPassword, newPassword)
+      : realUpdatePassword(currentPassword, newPassword);
+  },
+
+  /** 회원 탈퇴 → { resultCode } */
+  deleteAccount() {
+    return isMockEnabled() ? mockDeleteAccount() : realDeleteAccount();
   },
 };

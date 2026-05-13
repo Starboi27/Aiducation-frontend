@@ -14,3 +14,33 @@
   display: flex;
   gap: 0.5rem;
 }
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.admin-tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-secondary, #666);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.admin-tab.active {
+  color: #6C5CE7;
+  border-bottom-color: #6C5CE7;
+  font-weight: 600;
+}
+
+.status-badge.approved   { background: #eafaf1; color: #27ae60; }
+.status-badge.rejected   { background: #fdedec; color: #e74c3c; }
+.status-badge.pending    { background: #fef9e7; color: #f39c12; }
+.status-badge.processing { background: #ebf5fb; color: #2980b9; }

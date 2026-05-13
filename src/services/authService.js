@@ -23,9 +23,8 @@ export const AUTH_CONFIG = {
   // Mock 전환: true → Mock 데이터 사용 / false → 실제 백엔드 호출
   useMock: false,
 
-  // 비밀번호 재설정: 백엔드 permitAll() 설정 전 임시 Mock 사용
-  // 백엔드 준비 완료 시 false로 변경
-  useMockReset: false,
+  // 비밀번호 재설정 2·3단계(verify/complete)는 spec에 없는 엔드포인트 → Mock 고정
+  useMockReset: true,
 
   mockDelayMs: 800,
 };
@@ -164,6 +163,12 @@ async function mockGetMe(token) {
   return safeUser;
 }
 
+async function mockMailCheck(email) {
+  await sleep(AUTH_CONFIG.mockDelayMs);
+  const exists = MOCK_USERS.some((u) => u.email === email);
+  return { available: !exists };
+}
+
 async function mockGetAllUsers() {
   await sleep(500);
   return MOCK_USERS.map(({ password: _, ...u }) => u);
@@ -288,6 +293,10 @@ async function realGetMe(token) {
   throw new Error("유저 정보를 찾을 수 없습니다.");
 }
 
+async function realMailCheck(email) {
+  return apiClient.post('/oauth/mail_check', { mail_addr: email });
+}
+
 async function realGetAllUsers() {
   return apiClient.get("/api/v1/admin/users");
 }
@@ -366,6 +375,14 @@ export const authService = {
   /** 모든 사용자 목록 조회 (관리자용) */
   getAllUsers() {
     return AUTH_CONFIG.useMock ? mockGetAllUsers() : realGetAllUsers();
+  },
+
+  /**
+   * 이메일 중복 확인 → { available: boolean }
+   * 회원가입 전 이메일 사용 가능 여부를 확인합니다.
+   */
+  mailCheck(email) {
+    return AUTH_CONFIG.useMock ? mockMailCheck(email) : realMailCheck(email);
   },
 
   /**

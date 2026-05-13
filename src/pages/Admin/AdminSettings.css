@@ -142,3 +142,79 @@
   background-color: #f4f6f7;
   color: #95a5a6;
 }
+
+.settings-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.setting-field--inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.setting-field--inline label {
+  width: 90px;
+  font-weight: 600;
+  color: var(--text-secondary, #555);
+  font-size: 0.9rem;
+}
+
+.setting-unit {
+  font-size: 0.85rem;
+  color: var(--text-muted, #888);
+}
+
+.save-success-msg {
+  color: #27ae60;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.admin-tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-secondary, #666);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.admin-tab.active {
+  color: #6C5CE7;
+  border-bottom-color: #6C5CE7;
+  font-weight: 600;
+}
+
+.section-refresh-btn {
+  background: none;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-secondary, #666);
+}
+
+.fail-reason {
+  font-size: 0.82rem;
+  color: #e74c3c;
+}
+
+.status-badge.completed  { background: #eafaf1; color: #27ae60; }
+.status-badge.failed     { background: #fdedec; color: #e74c3c; }
+.status-badge.pending    { background: #fef9e7; color: #f39c12; }
+.status-badge.processing { background: #ebf5fb; color: #2980b9; }

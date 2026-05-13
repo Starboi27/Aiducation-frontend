@@ -3,9 +3,17 @@ import './AdminAIMonitor.css';
 import AdminTable from '../../components/organisms/AdminTable/AdminTable';
 import AdminStatCard from '../../components/molecules/AdminStatCard/AdminStatCard';
 import { aiService } from '../../services/aiService';
+import { adminService } from '../../services/adminService';
+
+const TYPE_LABEL = {
+  FILE_PIPELINE:       'PDF 분석',
+  QUIZ_GENERATION:     '퀴즈 생성',
+  CONCEPTS_EXTRACTION: '개념 추출',
+};
 
 const AdminAIMonitor = () => {
-  const [logs, setLogs] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [summary, setSummary] = useState({ pendingCount: 0, processingCount: 0, failedCount: 0 });
   const [settings, setSettings] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,33 +24,38 @@ const AdminAIMonitor = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [logData, settingData] = await Promise.all([
-        aiService.getAILogs(),
-        aiService.getSettings()
+      const [taskData, settingData] = await Promise.all([
+        adminService.getTasks(),
+        aiService.getSettings(),
       ]);
-      setLogs(logData);
+      setTasks(taskData?.tasks ?? []);
+      setSummary(taskData?.summary ?? { pendingCount: 0, processingCount: 0, failedCount: 0 });
       setSettings(settingData);
-    } catch (error) {
-      console.error('AI 모니터링 데이터 로드 실패:', error);
+    } catch (err) {
+      console.error('AI 모니터링 데이터 로드 실패:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const columns = [
-    { header: '서비스명', accessor: 'service' },
-    { header: '사용자', accessor: 'user' },
-    { 
-      header: '상태', 
-      render: (log) => (
-        <span className={`status-badge ${log.status}`}>
-          {log.status === 'success' ? '성공' : '실패'}
-        </span>
-      )
+    { header: '작업 유형', render: (task) => TYPE_LABEL[task.type] ?? task.type },
+    {
+      header: '상태',
+      render: (task) => {
+        const map = { COMPLETED: '완료', FAILED: '실패', PENDING: '대기', PROCESSING: '처리 중' };
+        return (
+          <span className={`status-badge ${task.status?.toLowerCase()}`}>
+            {map[task.status] ?? task.status}
+          </span>
+        );
+      },
     },
-    { header: '소요 시간', accessor: 'duration' },
-    { header: '사용 토큰', accessor: 'tokens' },
-    { header: '실행 일시', render: (log) => new Date(log.createdAt).toLocaleString() },
+    { header: '실행 일시',  render: (task) => new Date(task.createdAt).toLocaleString('ko-KR') },
+    {
+      header: '실패 원인',
+      render: (task) => task.failReason ? <span className="fail-reason">{task.failReason}</span> : '—',
+    },
   ];
 
   return (
@@ -71,18 +84,31 @@ const AdminAIMonitor = () => {
             <span className="value">{settings.defaultQuizCount}개</span>
           </div>
         </div>
-        
+
         <div className="ai-usage-stats">
-          <AdminStatCard title="오늘의 총 호출" value="124회" icon="smart_toy" trend={1} subValue="15% 증가" />
-          <AdminStatCard title="평균 응답 속도" value="1.8s" icon="speed" trend={-1} subValue="0.2s 단축" />
+          <AdminStatCard
+            title="대기 중 작업"
+            value={`${summary.pendingCount}건`}
+            icon="hourglass_empty"
+            trend={summary.pendingCount > 0 ? -1 : 0}
+            subValue="처리 대기 중"
+          />
+          <AdminStatCard
+            title="실패한 작업"
+            value={`${summary.failedCount}건`}
+            icon="error_outline"
+            trend={summary.failedCount > 0 ? -1 : 0}
+            subValue="재시도 필요"
+          />
         </div>
       </div>
 
       <div className="admin-section">
         <div className="section-header">
-          <h3>최근 실행 로그</h3>
+          <h3>AI 작업 큐</h3>
+          <button className="section-refresh-btn" onClick={loadData}>새로고침</button>
         </div>
-        <AdminTable columns={columns} data={logs} isLoading={isLoading} />
+        <AdminTable columns={columns} data={tasks} isLoading={isLoading} />
       </div>
 
       <div className="admin-section prompt-preview">

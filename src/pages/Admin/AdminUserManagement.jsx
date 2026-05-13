@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AdminUserManagement.css';
 import AdminTable from '../../components/organisms/AdminTable/AdminTable';
 import AdminBadge from '../../components/atoms/AdminBadge/AdminBadge';
-import { authService } from '../../services/authService';
+import { adminService } from '../../services/adminService';
 import Button from '../../components/atoms/Button/Button';
 import Input from '../../components/atoms/Input/Input';
 
@@ -19,9 +19,10 @@ const AdminUserManagement = () => {
   useEffect(() => {
     const term = searchTerm.toLowerCase();
     setFilteredUsers(
-      users.filter(u => 
-        u.name.toLowerCase().includes(term) || 
-        u.email.toLowerCase().includes(term)
+      users.filter((u) =>
+        (u.name ?? '').toLowerCase().includes(term) ||
+        (u.userId ?? '').toLowerCase().includes(term) ||
+        (u.email ?? '').toLowerCase().includes(term)
       )
     );
   }, [searchTerm, users]);
@@ -29,41 +30,76 @@ const AdminUserManagement = () => {
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const data = await authService.getAllUsers();
-      setUsers(data);
-      setFilteredUsers(data);
-    } catch (error) {
-      console.error('사용자 목록 로드 실패:', error);
+      const data = await adminService.getUsers();
+      const list = data?.users ?? [];
+      setUsers(list);
+      setFilteredUsers(list);
+    } catch (err) {
+      console.error('사용자 목록 로드 실패:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleToggleStatus = async (user) => {
+    const nextStatus = user.status === 'active' ? 'suspended' : 'active';
+    const reason = nextStatus === 'suspended' ? '관리자 정지' : '정지 해제';
+    try {
+      await adminService.updateUserStatus(user.ourId, nextStatus, reason);
+      setUsers((prev) =>
+        prev.map((u) => (u.ourId === user.ourId ? { ...u, status: nextStatus } : u))
+      );
+    } catch (err) {
+      alert(`상태 변경 실패: ${err.message}`);
+    }
+  };
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`"${user.name}" 사용자를 삭제하시겠습니까?`)) return;
+    const reason = '관리자 삭제';
+    try {
+      await adminService.deleteUser(user.ourId, reason);
+      setUsers((prev) => prev.filter((u) => u.ourId !== user.ourId));
+    } catch (err) {
+      alert(`삭제 실패: ${err.message}`);
+    }
+  };
+
   const columns = [
-    { header: '이름', accessor: 'name' },
-    { header: '이메일', accessor: 'email' },
-    { 
-      header: '역할', 
-      render: (user) => <AdminBadge role={user.role} /> 
-    },
-    { header: '레벨', accessor: 'level' },
-    { 
-      header: '상태', 
+    { header: '이름',   accessor: 'name'   },
+    { header: '아이디', accessor: 'userId' },
+    { header: '이메일', accessor: 'email'  },
+    { header: '역할',   render: (user) => <AdminBadge role={user.role} /> },
+    { header: '레벨',   accessor: 'level'  },
+    {
+      header: '상태',
       render: (user) => (
         <span className={`status-dot ${user.status}`}>
-          {user.status === 'active' ? '활성' : '비활성'}
+          {user.status === 'active' ? '활성' : user.status === 'suspended' ? '정지' : '탈퇴'}
         </span>
-      ) 
+      ),
     },
-    { header: '가입일', render: (user) => new Date(user.createdAt).toLocaleDateString() },
-    { 
-      header: '관리', 
+    { header: '가입일', render: (user) => new Date(user.joinDate).toLocaleDateString('ko-KR') },
+    {
+      header: '관리',
       render: (user) => (
         <div className="table-actions">
-          <Button variant="outline" size="small">수정</Button>
-          <Button variant="danger" size="small">정지</Button>
+          <Button
+            variant="outline"
+            size="small"
+            onClick={() => handleToggleStatus(user)}
+          >
+            {user.status === 'active' ? '정지' : '활성화'}
+          </Button>
+          <Button
+            variant="danger"
+            size="small"
+            onClick={() => handleDelete(user)}
+          >
+            삭제
+          </Button>
         </div>
-      ) 
+      ),
     },
   ];
 
@@ -72,8 +108,8 @@ const AdminUserManagement = () => {
       <div className="admin-page-header">
         <h1 className="admin-page-title">사용자 관리</h1>
         <div className="admin-page-actions">
-          <Input 
-            placeholder="이름 또는 이메일 검색" 
+          <Input
+            placeholder="이름, 아이디 또는 이메일 검색"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />

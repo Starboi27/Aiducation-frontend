@@ -600,3 +600,81 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* ── 계정 설정 섹션 ── */
+.mypage__account-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+.mypage__account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mypage__account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mypage__account-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.mypage__account-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.mypage__account-input:focus {
+  border-color: #6C5CE7;
+}
+
+.mypage__account-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.mypage__account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mypage__account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.mypage__account-row strong {
+  margin-left: auto;
+  color: var(--text-primary);
+}
+
+.mypage__account-msg {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  color: #27ae60;
+}
+
+.mypage__danger-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}

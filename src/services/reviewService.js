@@ -74,6 +74,16 @@ async function mockUnsubscribeNotification(unsubscribeData) {
   return null;
 }
 
+async function mockGetAlarmStatus() {
+  await sleep(REVIEW_CONFIG.mockDelayMs);
+  return { mailAlram: true };
+}
+
+async function mockToggleAlarm(enabled) {
+  await sleep(REVIEW_CONFIG.mockDelayMs);
+  return { mailAlram: enabled };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REAL API IMPLEMENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,6 +98,12 @@ const realSubscribeNotification = (subscribeData) =>
 
 const realUnsubscribeNotification = (unsubscribeData) =>
   apiClient.delete('/api/v1/notifications/subscribe', { body: unsubscribeData });
+
+const realGetAlarmStatus = () =>
+  apiClient.get('/api/v1/notifications/alarm');
+
+const realToggleAlarm = (enabled) =>
+  apiClient.put('/api/v1/notifications/alarm', { enabled });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
@@ -123,5 +139,18 @@ export const reviewService = {
     return isMockEnabled()
       ? mockUnsubscribeNotification(unsubscribeData)
       : realUnsubscribeNotification(unsubscribeData);
+  },
+
+  /** 메일 알람 상태 조회 → { mailAlram: boolean } */
+  getAlarmStatus() {
+    return isMockEnabled() ? mockGetAlarmStatus() : realGetAlarmStatus();
+  },
+
+  /**
+   * 메일 알람 토글 → { mailAlram: boolean }
+   * @param {boolean} enabled
+   */
+  toggleAlarm(enabled) {
+    return isMockEnabled() ? mockToggleAlarm(enabled) : realToggleAlarm(enabled);
   },
 };

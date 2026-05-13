@@ -220,15 +220,44 @@ async function realAnalyzeWrongAnswer(question, userAnswerText, options = {}) {
   return data.explanation ?? data;
 }
 
-// ── 정답 제출 ──────────────────────────────────────────────────────────────────
-async function mockSubmitAnswer(quizId, answer) {
-  await sleep(300);
-  return { correct: Math.random() > 0.4, expGained: 10 };
+// ── 퀴즈 일괄 제출 ────────────────────────────────────────────────────────────
+// spec: POST /api/v1/quizzes/submit-all
+//   body: { answers: [{ quizId, answer }] }
+//   response: { results, expGained, levelUp, currentLevel, currentExp }
+async function mockSubmitAll(answers) {
+  await sleep(400);
+  const results = answers.map(({ quizId, answer }) => ({
+    quizId,
+    correct: Math.random() > 0.4,
+    correctAnswer: Math.floor(Math.random() * 5) + 1,
+    submittedAnswer: answer,
+  }));
+  const correctCount = results.filter((r) => r.correct).length;
+  return { results, expGained: correctCount * 10, levelUp: false, currentLevel: 1, currentExp: correctCount * 10 };
 }
 
-async function realSubmitAnswer(quizId, answer) {
-  // answer: 1-5 (1-based)
-  return apiClient.post(`/api/v1/quizzes/${quizId}/submit`, { answer });
+async function realSubmitAll(answers) {
+  return apiClient.post('/api/v1/quizzes/submit-all', { answers });
+}
+
+// ── 개념별 기존 퀴즈 목록 ──────────────────────────────────────────────────────
+async function mockGetQuizzes(conceptId) {
+  await sleep(AI_CONFIG.mockDelayMs);
+  return buildMockQuestions(`concept_${conceptId}`, AI_CONFIG.defaultQuizCount);
+}
+
+async function realGetQuizzes(conceptId) {
+  return apiClient.get(`/api/v1/concepts/${conceptId}/quizzes`);
+}
+
+// ── 퀴즈 단건 조회 ────────────────────────────────────────────────────────────
+async function mockGetQuiz(quizId) {
+  await sleep(300);
+  return { subjectId: 1, subjectName: '[Mock] 운영체제' };
+}
+
+async function realGetQuiz(quizId) {
+  return apiClient.get(`/api/v1/quizzes/${quizId}`);
 }
 
 // ── 힌트 조회 ──────────────────────────────────────────────────────────────────
@@ -255,24 +284,28 @@ async function mockGetAllContents() {
 }
 
 async function realGetAllContents() {
-  return apiClient.get('/api/admin/contents');
+  return apiClient.get('/api/v1/admin/contents');
 }
 
-// ── Mock AI 로그 (관리자용) ────────────────────────────────────────────────────
-const MOCK_AI_LOGS = [
-  { id: 'log_001', service: 'Document Analysis', user: '이창현', status: 'success', duration: '1.2s', tokens: 450, createdAt: '2024-03-23T10:24:12Z' },
-  { id: 'log_002', service: 'Quiz Generation', user: '이창현', status: 'success', duration: '2.5s', tokens: 1280, createdAt: '2024-03-23T10:21:05Z' },
-  { id: 'log_003', service: 'Document Analysis', user: '김민수', status: 'error', duration: '0.8s', tokens: 0, createdAt: '2024-03-23T10:15:30Z', error: 'Timeout' },
-  { id: 'log_004', service: 'Wrong Answer Analysis', user: '최유리', status: 'success', duration: '1.8s', tokens: 320, createdAt: '2024-03-23T09:42:15Z' },
-];
+// ── Mock AI 작업 큐 (TaskQueueResponse 형식) ──────────────────────────────────
+const MOCK_TASK_QUEUE = {
+  summary: { pendingCount: 2, processingCount: 1, failedCount: 1 },
+  tasks: [
+    { taskId: 'task_001', type: 'FILE_PIPELINE',       status: 'COMPLETED',  createdAt: '2024-03-23T10:24:12Z', failReason: null },
+    { taskId: 'task_002', type: 'QUIZ_GENERATION',     status: 'COMPLETED',  createdAt: '2024-03-23T10:21:05Z', failReason: null },
+    { taskId: 'task_003', type: 'CONCEPTS_EXTRACTION', status: 'FAILED',     createdAt: '2024-03-23T10:15:30Z', failReason: 'AI 서버 응답 시간 초과' },
+    { taskId: 'task_004', type: 'FILE_PIPELINE',       status: 'PENDING',    createdAt: '2024-03-23T09:42:15Z', failReason: null },
+    { taskId: 'task_005', type: 'QUIZ_GENERATION',     status: 'PROCESSING', createdAt: '2024-03-23T09:30:00Z', failReason: null },
+  ],
+};
 
 async function mockGetAILogs() {
   await sleep(400);
-  return MOCK_AI_LOGS;
+  return { ...MOCK_TASK_QUEUE };
 }
 
 async function realGetAILogs() {
-  return apiClient.get('/api/admin/ai-logs');
+  return apiClient.get('/api/v1/admin/tasks');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -343,15 +376,36 @@ export const aiService = {
   },
 
   /**
-   * 퀴즈 정답 제출 → { correct: boolean, expGained: number }
+   * 퀴즈 일괄 제출 → { results, expGained, levelUp, currentLevel, currentExp }
    *
-   * @param {string} quizId
-   * @param {number} answer - 1-based (1~5)
+   * @param {{ quizId: number, answer: number }[]} answers - answer는 1-based (1~5)
    */
-  submitAnswer(quizId, answer) {
+  submitAll(answers) {
     return AI_CONFIG.useMock
-      ? mockSubmitAnswer(quizId, answer)
-      : realSubmitAnswer(quizId, answer);
+      ? mockSubmitAll(answers)
+      : realSubmitAll(answers);
+  },
+
+  /**
+   * 개념별 퀴즈 목록 조회 → Question[]
+   *
+   * @param {number|string} conceptId
+   */
+  getQuizzes(conceptId) {
+    return AI_CONFIG.useMock
+      ? mockGetQuizzes(conceptId)
+      : realGetQuizzes(conceptId);
+  },
+
+  /**
+   * 퀴즈 단건 조회 → Info { subjectId, subjectName }
+   *
+   * @param {number|string} quizId
+   */
+  getQuiz(quizId) {
+    return AI_CONFIG.useMock
+      ? mockGetQuiz(quizId)
+      : realGetQuiz(quizId);
   },
 
   /**
