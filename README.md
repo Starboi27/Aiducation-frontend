@@ -34,7 +34,7 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ### API 명세 v3 전면 반영
 
-#### 버그 수정 (4건)
+#### 버그 수정 (5건)
 
 | 파일 | 수정 내용 |
 |------|-----------|
@@ -42,6 +42,7 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 | `aiService.js` | AI 로그 엔드포인트 교체 (`/api/admin/ai-logs` → `/api/v1/admin/tasks`) |
 | `authService.js` | 비밀번호 재설정 verify/complete 미존재 엔드포인트 → `useMockReset: true` 고정 |
 | `userService.js` | 존재하지 않는 `GET /api/v1/users/me` → localStorage 캐시 사용으로 변경 |
+| `aiService.js` | 개념 폴링 응답 형식 불일치 수정 — 배열로 가정하던 코드를 `{ concepts: [...] }` 객체 형식에 맞게 교정 (`data?.concepts` 우선 추출) |
 
 #### 신규 기능 (서비스 레이어)
 

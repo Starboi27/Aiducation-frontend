@@ -152,12 +152,14 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     await sleep(INTERVAL_MS);
 
-    const concepts = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
+    const data = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
+    // 응답 형식: { concepts: [...] } 또는 배열 직접
+    const concepts = data?.concepts ?? (Array.isArray(data) ? data : []);
     // 진행률: 40% 에서 시작해 최대 90%까지 선형 증가
     const progress = 40 + Math.min(50, Math.floor((i / MAX_ATTEMPTS) * 50));
     onProgress?.({ step: 'categorizing', status: 'active', progress });
 
-    if (concepts && concepts.length > 0) {
+    if (concepts.length > 0) {
       onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
       return {
         subjectName: file.name.replace(/\.[^.]+$/, ''),
