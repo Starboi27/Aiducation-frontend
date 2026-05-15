@@ -7,3 +7,4 @@ export { default as RankingPage } from './RankingPage/RankingPage';
 export { default as SubjectPage } from './SubjectPage/SubjectPage';
 export { default as LoginPage } from './LoginPage/LoginPage';
 export { default as MyPage } from './MyPage/MyPage';
+export { default as SettingPage } from './SettingPage/SettingPage';

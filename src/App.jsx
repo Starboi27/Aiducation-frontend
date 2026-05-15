@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import MainLayout from './components/templates/MainLayout/MainLayout';
 import AdminLayout from './components/templates/AdminLayout/AdminLayout';
-import { Dashboard, UploadPage, QuizPage, ReviewPage, ReportPage, RankingPage, SubjectPage, LoginPage, MyPage } from './pages';
+import { Dashboard, UploadPage, QuizPage, ReviewPage, ReportPage, RankingPage, SubjectPage, LoginPage, MyPage, SettingPage } from './pages';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AdminUserManagement from './pages/Admin/AdminUserManagement';
 import AdminContentManagement from './pages/Admin/AdminContentManagement';
@@ -57,7 +57,7 @@ const AppRoutes = () => {
         <Route path="mypage" element={<MyPage />} />
         {/* Fallback routes */}
         <Route path="notifications" element={<Dashboard />} />
-        <Route path="settings" element={<Dashboard />} />
+        <Route path="settings" element={<SettingPage />} />
       </Route>
 
       {/* 관리자 전용 라우트 */}

@@ -1,0 +1,292 @@
+/* ═══════════════════════════════════════════
+   SettingPage — 사용자 설정 페이지
+   ═══════════════════════════════════════════ */
+
+.sp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* ── 헤더 ── */
+.sp__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.sp__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+}
+
+.sp__subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.sp__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.sp__save-msg {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #27ae60;
+}
+
+/* ── 바디 ── */
+.sp__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* ── 섹션 ── */
+.sp__section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.sp__section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #6C5CE7;
+  margin: 0 0 var(--spacing-sm) 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ── 설정 행 ── */
+.sp-setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sp-setting-row:last-child {
+  border-bottom: none;
+}
+
+.sp-setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-setting-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sp-setting-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.sp-setting-control {
+  flex-shrink: 0;
+}
+
+/* ── 입력 컨트롤 ── */
+.sp-number-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sp-number-input input {
+  width: 80px;
+  text-align: center;
+}
+
+.sp-unit {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.sp-time-input,
+.sp-select {
+  height: 38px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  background: var(--bg-input, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.sp-time-input:focus,
+.sp-select:focus {
+  border-color: #6C5CE7;
+}
+
+/* ── 토글 ── */
+.sp-toggle {
+  width: 50px;
+  height: 26px;
+  background: var(--border-color);
+  border-radius: 13px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.sp-toggle--on {
+  background: #6C5CE7;
+}
+
+.sp-toggle__handle {
+  width: 22px;
+  height: 22px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.sp-toggle--on .sp-toggle__handle {
+  transform: translateX(24px);
+}
+
+/* ── 서브섹션 (보안) ── */
+.sp__subsection {
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sp__subsection:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sp__subsection-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* ── 비밀번호 폼 ── */
+.sp__pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-width: 380px;
+}
+
+.sp__pw-msg {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.sp__pw-msg--error {
+  color: #e74c3c;
+}
+
+.sp__pw-msg--success {
+  color: #27ae60;
+}
+
+.sp__social-notice {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── 소셜 연동 ── */
+.sp__social-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.sp__social-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.sp__social-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.sp__social-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sp__social-icon--google {
+  background: #ea4335;
+  color: white;
+}
+
+.sp__social-name {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sp__social-status {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+/* ── 반응형 ── */
+@media (max-width: 600px) {
+  .sp__header {
+    flex-direction: column;
+  }
+
+  .sp-setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .sp__social-item {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+}
