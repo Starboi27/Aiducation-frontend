@@ -31,6 +31,51 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 ---
 
+## 2026-05-18 작업 현황
+
+### 버그 수정 및 기능 개선
+
+#### apiClient.js — 토큰 갱신 로직 강화
+
+| 수정 항목 | 내용 |
+|----------|------|
+| `getToken()` null 가드 | `"undefined"`, `"null"` 문자열이 토큰으로 저장되던 버그 수정 |
+| refresh 구독자 누락 | refresh 실패 시 대기 중인 프로미스를 reject하지 않던 버그 수정 (`onRefreshFailed` 추가) |
+| refresh 응답 검증 | `accessToken` 필드가 없으면 즉시 에러 처리 |
+
+> ⚠️ **백엔드 수정 필요**: `POST /api/v1/auth/refresh` 응답에 `accessToken` 필드 누락 — 현재 `refreshToken`만 반환 중. 이 문제가 수정되기 전까지 토큰 만료 시 강제 로그아웃 발생.
+
+#### SettingsPage — 학습 설정 수정
+
+| 수정 항목 | 내용 |
+|----------|------|
+| `studyAlarmTime` null 안전 처리 | API가 `null` 또는 `{hour:null}` 반환 시 "null:null" 깨짐 방지 |
+| 학습 리마인드 시간 UI | `<input type="time">` → 시/분 다이얼 `<select>` 2개로 교체 |
+| 저장 후 리셋 버그 | 저장 후 refetch로 인해 시간이 20:00으로 되돌아가던 버그 수정 |
+| `오답 복습 주기` 섹션 제거 | API 스펙에 없는 필드 — UI 및 localStorage 처리 전면 제거 |
+
+#### Sidebar — 알림 드롭다운
+
+- `/notifications` 별도 페이지 라우팅 → 사이드바 내 드롭다운으로 전환
+- `position: fixed` + `getBoundingClientRect()` 로 `overflow: hidden` 잘림 문제 해결
+- 알림 클릭 시 읽음 처리, 모두 읽음 버튼, 읽지 않은 수 배지 표시
+
+#### RankingPage — API 응답 필드 매핑
+
+- API 응답 `{ rank, userId, level, totalExp }` → RankingTable 기대 필드(`id`, `name`)로 매핑 추가
+- `currentUserId={user.id}` → `user.userId` 수정
+- `streak`, `accuracy` API 미제공 필드 — `null` 체크 후 `-` 표시
+
+#### UploadPage — 개념 폴링 개선
+
+- 타임아웃 90초 → 3분(60회 × 3초)으로 연장
+- 응답 형식 `{ subjects: [...] }` 케이스 추가 처리
+- 폴링 중 실제 응답 로그 추가 (디버깅용)
+
+> ⚠️ **백엔드 확인 필요**: 파일 업로드 후 AI 파이프라인이 `concepts-extracted` 콜백을 호출하지 않아 `{ concepts: [] }` 가 계속 반환됨. 백엔드 AI 서버 연동 상태 점검 필요.
+
+---
+
 ## 2026-05-15 작업 현황 (v0.9)
 
 ### 사용자 설정 페이지 신규 구현
