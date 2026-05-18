@@ -145,17 +145,22 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
   await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
   onProgress?.({ step: 'analyzing', status: 'active', progress: 33 });
 
-  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 30회 × 3초 = 90초)
-  const MAX_ATTEMPTS = 30;
+  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 60회 × 3초 = 3분)
+  const MAX_ATTEMPTS = 60;
   const INTERVAL_MS = 3000;
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     await sleep(INTERVAL_MS);
 
     const data = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
-    // 응답 형식: { concepts: [...] } 또는 배열 직접
-    const concepts = data?.concepts ?? (Array.isArray(data) ? data : []);
-    // 진행률: 40% 에서 시작해 최대 90%까지 선형 증가
+    // 응답 형식: { concepts:[...] } | { subjects:[...] } | 배열 직접
+    const concepts =
+      data?.concepts ??
+      data?.subjects ??
+      (Array.isArray(data) ? data : []);
+
+    console.log(`[폴링 ${i + 1}/${MAX_ATTEMPTS}] 응답:`, data, '→ concepts:', concepts);
+
     const progress = 40 + Math.min(50, Math.floor((i / MAX_ATTEMPTS) * 50));
     onProgress?.({ step: 'categorizing', status: 'active', progress });
 

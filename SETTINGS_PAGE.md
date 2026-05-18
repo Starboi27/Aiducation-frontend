@@ -1,6 +1,6 @@
-# SettingPage 설계서
+# SettingsPage 설계서 (v0.9 API 스펙 기준)
 
-> 일반 사용자용 앱 동작 방식 제어 페이지. MyPage(프로필·활동 통계)와 역할 분리.
+> `0.9_ver_api.json` 실제 스펙을 기준으로 재설계. Gemini 초안 대비 API 불일치 항목 전면 수정.
 
 ---
 
@@ -10,112 +10,117 @@
 /settings
 ```
 
-## 페이지 구조
+---
 
-```
-SettingPage
-├── 학습 설정 (LearningSettings)
-├── 알림 설정 (NotificationSettings)
-├── 화면 설정 (DisplaySettings)
-└── 보안 (SecuritySettings)
-```
+## API 엔드포인트 매핑
+
+| 섹션 | 엔드포인트 | 메서드 | 요청 스키마 | 응답 스키마 |
+|------|-----------|--------|-------------|-------------|
+| 학습 설정 조회 | `/api/v1/users/me/settings` | GET | - | `StudySettings` |
+| 학습 설정 수정 | `/api/v1/users/me/settings` | PATCH | `UpdateStudySettings` | `Simple` |
+| 알림 설정 조회 | `/api/v1/users/me/alarm-settings` | GET | - | `AlarmStatus` |
+| 알림 설정 수정 | `/api/v1/users/me/alarm-settings` | PATCH | `UpdateAlarmSettings` | `AlarmStatus` |
+| 프로필 수정 | `/api/v1/users/me/profile` | PATCH | `UpdateProfile` | `Simple` |
+| 비밀번호 변경 | `/api/v1/users/me/password` | PATCH | `UpdatePassword` | `Simple` |
+| 회원 탈퇴 | `/api/v1/users/me` | DELETE | - | `Simple` |
 
 ---
 
-## 섹션별 상세
+## 스키마 정의 (API 스펙 원문)
 
-### 1. 학습 설정
-
-| 항목 | 타입 | 기본값 | 설명 |
-|------|------|--------|------|
-| 하루 목표 문제 수 | number input (1~100) | 20 | 대시보드 목표 달성률에 반영 |
-| 학습 알림 시간 | time picker | 09:00 | 알림 발송 기준 시각 |
-| 퀴즈 난이도 기본값 | select (쉬움/보통/어려움) | 보통 | 퀴즈 생성 시 초기값으로 사용 |
-| 오답 복습 주기 | select (1일/3일/7일/끄기) | 3일 | ReviewPage 재출제 간격 |
-
----
-
-### 2. 알림 설정
-
-| 항목 | 타입 | 기본값 | 설명 |
-|------|------|--------|------|
-| 푸시 알림 | toggle | ON | 학습 리마인더 등 앱 푸시 |
-| 학습 리포트 이메일 | toggle | ON | 주간 리포트 이메일 수신 |
-| 랭킹 변동 이메일 | toggle | OFF | 랭킹 순위 변동 알림 이메일 |
-
----
-
-### 3. 화면 설정
-
-| 항목 | 타입 | 기본값 | 설명 |
-|------|------|--------|------|
-| 다크모드 | toggle | OFF | 전체 테마 다크/라이트 전환 |
-
----
-
-### 4. 보안
-
-| 항목 | 타입 | 설명 |
-|------|------|------|
-| 비밀번호 변경 | form (현재 PW → 새 PW → 확인) | 이메일 계정 전용 (소셜 로그인 시 비활성) |
-| 소셜 연동 관리 | 연동/해제 버튼 | Google OAuth 연결 상태 표시 및 해제 |
-
----
-
-## 상태 관리
-
-- 설정값은 `AppContext`의 `userSettings` 필드로 관리
-- 저장 버튼 클릭 시 `authService.updateSettings()` 호출 (Mock 우선)
-- 저장 성공 시 토스트 알림 표시
-
-## Mock 데이터 스키마
-
-```js
-userSettings: {
-  learning: {
-    dailyGoal: 20,
-    reminderTime: "09:00",
-    defaultDifficulty: "보통",   // "쉬움" | "보통" | "어려움"
-    reviewInterval: "3일",       // "1일" | "3일" | "7일" | "끄기"
-  },
-  notification: {
-    pushEnabled: true,
-    reportEmail: true,
-    rankingEmail: false,
-  },
-  display: {
-    darkMode: false,
-  },
-  security: {
-    isSocialOnly: false,         // true면 비밀번호 변경 폼 비활성
-    googleLinked: true,
-  }
+### StudySettings (GET 응답)
+```json
+{
+  "dailyGoal": integer,
+  "studyAlarmTime": { "hour": int, "minute": int, "second": int, "nano": int },
+  "defaultDifficulty": integer
 }
 ```
 
+### UpdateStudySettings (PATCH 요청)
+```json
+{
+  "dailyGoal": integer, // required, min:1, max:100
+  "defaultDifficulty": integer, // required, min:0, max:5
+  "studyAlarmTime": { "hour": int, "minute": int, "second": int, "nano": int }
+}
+```
+> ⚠️ `reviewInterval` 필드 없음 — UI 전용으로 localStorage에만 저장
+
+### AlarmStatus (GET 응답 / PATCH 응답)
+```json
+{
+  "pushAlarm": boolean,
+  "mailAlram": boolean,
+  "rankingAlarm": boolean
+}
+```
+> ⚠️ `mailAlram` — 백엔드 스펙 오타. `mailAlarm`이 아닌 `mailAlram` 사용 필수
+
+### UpdateAlarmSettings (PATCH 요청)
+```json
+{
+  "pushAlarm": boolean, // required
+  "mailAlram": boolean, // required
+  "rankingAlarm": boolean // required
+}
+```
+> ⚠️ 3개 필드 모두 required → 개별 토글 시에도 전체 상태를 한 번에 전송
+
 ---
 
-## UI 규칙 체크리스트
+## 섹션별 설계
 
-- [ ] 섹션 헤더 강조 색상: `#6C5CE7`
-- [ ] 저장 버튼: 보라색 계열
-- [ ] 변경 사항 저장 전 페이지 이탈 시 경고 모달 표시
-- [ ] 비밀번호 변경 폼: 소셜 전용 계정이면 비활성(disabled) 처리 + 안내 문구
+### 섹션 1 — 프로필 설정
+- **필드**: 이름(`name`), 이메일(`email`)
+- **저장**: `PATCH /api/v1/users/me/profile`
+- **특이사항**: 없음
+
+### 섹션 2 — 보안 / 비밀번호
+- **필드**: 현재 비밀번호, 새 비밀번호, 확인
+- **저장**: `PATCH /api/v1/users/me/password`
+- **특이사항**: 클라이언트에서 새 비밀번호 일치 여부 검증 후 전송
+
+### 섹션 3 — 학습 설정
+- **필드**:
+
+| 항목 | 상태 키 | API 필드 | 유효범위 | 저장 위치 |
+|------|---------|---------|---------|---------|
+| 일일 학습 목표 | `dailyGoal` | `dailyGoal` | 1~100 (분) | API |
+| 학습 알림 시간 | `studyAlarmTime` | `studyAlarmTime` (LocalTime) | - | API |
+| 기본 난이도 | `defaultDifficulty` | `defaultDifficulty` | 0~5 | API |
+| 오답 복습 주기 | `reviewInterval` | **없음** | 0,1,3,7,14 | **localStorage만** |
+
+- **저장**: `PATCH /api/v1/users/me/settings` + `localStorage.review_interval`
+- **주의**: `studyAlarmTime`은 UI에서 `"HH:mm"` 문자열로 관리 → 전송 시 `LocalTime` 객체로 변환
+
+### 섹션 4 — 알림 수신 설정
+- **필드**: pushAlarm, mailAlram, rankingAlarm (모두 boolean)
+- **저장**: `PATCH /api/v1/users/me/alarm-settings` (전체 3개 필드 항상 포함)
+- **UX**: 토글 즉시 API 호출 → 실패 시 롤백
+
+### 섹션 5 — 위험 구역
+- **기능**: 회원 탈퇴
+- **처리**: `DELETE /api/v1/users/me` → 성공 시 localStorage 초기화 + `/login` 이동
 
 ---
 
-## Atomic 계층 계획
+## Gemini 초안 대비 수정 항목
 
-| 컴포넌트 | 계층 | 경로 |
-|---------|------|------|
-| `SettingSection` | molecule | `components/molecules/SettingSection` |
-| `ToggleSetting` | molecule | `components/molecules/ToggleSetting` |
-| `SettingPage` | page | `pages/SettingPage/SettingPage.jsx` |
+| # | 항목 | 기존 (버그) | 수정 |
+|---|------|------------|------|
+| 1 | `dailyGoal` UI max | 480 | **100** (API spec 준수) |
+| 2 | `dailyGoal` UI label | "분" | "문제" → "분" (실제 의미는 분) |
+| 3 | mock `studyAlarmTime` | `{ hour, minute, second, nano }` ✓ | 유지 |
+| 4 | 알림 설정 필드명 | `mailAlram` ✓ | 유지 (백엔드 오타 동일하게) |
+| 5 | `reviewInterval` API 전송 | localStorage only ✓ | 유지 |
 
 ---
 
-## 관련 문서
+## 관련 파일
 
-- UI/UX 법전: `@policies/ui_requirements.md`
-- 인증 서비스: `src/services/authService.js`
-- 전역 상태: `src/context/AppContext.js`
+| 파일 | 역할 |
+|------|------|
+| `src/pages/SettingsPage/SettingsPage.jsx` | 설정 페이지 메인 컴포넌트 |
+| `src/pages/SettingsPage/SettingsPage.css` | 스타일 |
+| `src/services/userService.js` | 설정 API 서비스 레이어 |

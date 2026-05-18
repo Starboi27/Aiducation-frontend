@@ -11,7 +11,12 @@
       "Bash(grep *)",
       "Bash(npm *)",
       "Bash(npx *)",
-      "Bash(rtk grep *)"
+      "Bash(rtk grep *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk find *)",
+      "Bash(rtk read *)",
+      "Bash(rtk git *)",
+      "Bash(rtk curl *)"
     ]
   }
 }

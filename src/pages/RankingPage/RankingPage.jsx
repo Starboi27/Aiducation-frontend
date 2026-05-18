@@ -17,8 +17,13 @@ const RankingPage = () => {
       try {
         setIsLoading(true);
         const data = await userService.getRanking();
-        // API 응답 구조: { rankings: [...], totalCount: ... }
-        setRankings(data.rankings || []);
+        const mapped = (data.rankings || []).map(item => ({
+          id: item.userId,
+          name: item.userId,
+          level: item.level,
+          totalExp: item.totalExp,
+        }));
+        setRankings(mapped);
       } catch (err) {
         console.error("랭킹 정보를 불러오는데 실패했습니다:", err);
         setError("랭킹 정보를 불러올 수 없습니다. 나중에 다시 시도해주세요.");
@@ -54,7 +59,7 @@ const RankingPage = () => {
             <p>{error}</p>
           </div>
         ) : (
-          <RankingTable users={rankings} currentUserId={user.id} />
+          <RankingTable users={rankings} currentUserId={user.userId} />
         )}
       </div>
     </div>

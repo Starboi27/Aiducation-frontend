@@ -15,7 +15,10 @@ const BASE_URL = process.env.REACT_APP_API_URL ?? 'http://bbasung.iptime.org:808
 const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
-const getToken = () => localStorage.getItem(TOKEN_KEY);
+const getToken = () => {
+  const t = localStorage.getItem(TOKEN_KEY);
+  return t && t !== 'undefined' && t !== 'null' ? t : null;
+};
 
 // 인증 토큰을 붙이지 않을 공개 경로
 const PUBLIC_AUTH_PATHS = [
@@ -31,14 +34,23 @@ const PUBLIC_AUTH_PATHS = [
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-function onRefreshed(newToken) {
-  refreshSubscribers.forEach((cb) => cb(newToken));
+function onRefreshed() {
+  refreshSubscribers.forEach(({ resolve, reject, method, path, options }) =>
+    resolve(request(method, path, options))
+  );
+  refreshSubscribers = [];
+}
+
+function onRefreshFailed(err) {
+  refreshSubscribers.forEach(({ reject }) => reject(err));
   refreshSubscribers = [];
 }
 
 async function tryRefreshToken() {
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) throw new Error('refresh token 없음');
+  if (!refreshToken || refreshToken === 'undefined' || refreshToken === 'null') {
+    throw new Error('refresh token 없음');
+  }
 
   const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
     method: 'POST',
@@ -49,10 +61,14 @@ async function tryRefreshToken() {
   if (!res.ok) throw new Error('refresh 실패');
 
   const data = await res.json();
-  const newAccessToken = data.accessToken;
+  // 백엔드마다 필드명이 다를 수 있으므로 두 가지 시도
+  const newAccessToken = data.accessToken || data.token;
+  if (!newAccessToken) throw new Error('refresh 응답에 accessToken 없음');
+
   localStorage.setItem(TOKEN_KEY, newAccessToken);
-  if (data.refreshToken) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+  const newRefreshToken = data.refreshToken || data.refresh_token;
+  if (newRefreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
   }
   return newAccessToken;
 }
@@ -65,7 +81,7 @@ function clearAuthAndRedirect() {
 }
 
 async function request(method, path, options = {}) {
-  const { body, isFormData = false } = options;
+  const { body, isFormData = false, _retryCount = 0 } = options;
 
   const headers = {};
 
@@ -94,19 +110,19 @@ async function request(method, path, options = {}) {
   }
 
   if (res.status === 401) {
-    if (!isPublicPath) {
-      // refresh token으로 재발급 시도
+    if (!isPublicPath && _retryCount < 1) {
+      // refresh token으로 재발급 시도 (최대 1회 재시도)
       if (!isRefreshing) {
         isRefreshing = true;
         try {
-          const newToken = await tryRefreshToken();
+          await tryRefreshToken();
           isRefreshing = false;
-          onRefreshed(newToken);
-          // 원래 요청 재시도 (새 토큰으로)
-          return request(method, path, options);
-        } catch {
+          onRefreshed();
+          // 원래 요청 재시도 (새 토큰으로, 재시도 횟수 증가)
+          return request(method, path, { ...options, _retryCount: _retryCount + 1 });
+        } catch (refreshErr) {
           isRefreshing = false;
-          refreshSubscribers = [];
+          onRefreshFailed(refreshErr);
           clearAuthAndRedirect();
           throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
         }
@@ -114,11 +130,21 @@ async function request(method, path, options = {}) {
 
       // 이미 refresh 중이면 완료될 때까지 대기 후 재시도
       return new Promise((resolve, reject) => {
-        refreshSubscribers.push((newToken) => {
-          resolve(request(method, path, options));
+        refreshSubscribers.push({
+          resolve,
+          reject,
+          method,
+          path,
+          options: { ...options, _retryCount: _retryCount + 1 },
         });
       });
     }
+
+    // 재시도 후에도 401이거나 공개 경로인 경우
+    if (!isPublicPath) {
+      clearAuthAndRedirect();
+    }
+
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message ?? '인증이 만료되었습니다. 다시 로그인해주세요.');
   }

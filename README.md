@@ -39,8 +39,8 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 
 | 파일 | 내용 |
 |------|------|
-| `src/pages/SettingPage/SettingPage.jsx` | 설정 페이지 컴포넌트 |
-| `src/pages/SettingPage/SettingPage.css` | 설정 페이지 스타일 |
+| `src/pages/SettingsPage/SettingsPage.jsx` | 설정 페이지 컴포넌트 |
+| `src/pages/SettingsPage/SettingsPage.css` | 설정 페이지 스타일 |
 | `.claude/docs/SETTINGS_PAGE.md` | 설정 페이지 설계서 |
 
 #### 구현 내용
@@ -50,7 +50,7 @@ AI 기반 맞춤형 학습 플랫폼. PDF/문서를 업로드하면 AI가 자동
 - **보안** — 비밀번호 변경 폼 (소셜 전용 계정 비활성 처리), Google 소셜 연동 관리
 - 설정값 `localStorage` 저장, 미저장 이탈 시 브라우저 경고
 - API 연결 대비 async 구조 (비밀번호: `PATCH /api/v1/users/me/password`, 알림: `PUT /api/v1/notifications/alarm` 연결 예정)
-- `/settings` 라우트 기존 Dashboard 임시 연결 → SettingPage로 교체
+- `/settings` 라우트 기존 Dashboard 임시 연결 → SettingsPage로 교체
 
 ---
 

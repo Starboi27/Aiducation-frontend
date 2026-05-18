@@ -101,6 +101,21 @@ const MOCK_INCORRECTS = {
   ],
 };
 
+// StudySettings 스펙: { dailyGoal(1~100), studyAlarmTime(LocalTime), defaultDifficulty(0~5) }
+// reviewInterval은 API 스펙에 없는 UI 전용 값 → localStorage만 사용
+const MOCK_STUDY_SETTINGS = {
+  dailyGoal: 30,
+  studyAlarmTime: { hour: 20, minute: 0, second: 0, nano: 0 },
+  defaultDifficulty: 3,
+};
+
+// AlarmStatus 스펙: { pushAlarm, mailAlram(오타 유지), rankingAlarm } — 3개 모두 required
+const MOCK_ALARM_SETTINGS = {
+  pushAlarm: true,
+  mailAlram: true,
+  rankingAlarm: false,
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MOCK IMPLEMENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,6 +137,28 @@ async function mockGetRanking(page = 0) {
 async function mockGetIncorrects() {
   await sleep(USER_CONFIG.mockDelayMs);
   return { ...MOCK_INCORRECTS };
+}
+
+async function mockGetStudySettings() {
+  await sleep(USER_CONFIG.mockDelayMs);
+  return { ...MOCK_STUDY_SETTINGS };
+}
+
+async function mockUpdateStudySettings(settings) {
+  await sleep(USER_CONFIG.mockDelayMs);
+  Object.assign(MOCK_STUDY_SETTINGS, settings);
+  return { resultCode: 200 };
+}
+
+async function mockGetAlarmSettings() {
+  await sleep(USER_CONFIG.mockDelayMs);
+  return { ...MOCK_ALARM_SETTINGS };
+}
+
+async function mockUpdateAlarmSettings(settings) {
+  await sleep(USER_CONFIG.mockDelayMs);
+  Object.assign(MOCK_ALARM_SETTINGS, settings);
+  return { ...MOCK_ALARM_SETTINGS };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +202,11 @@ const realGetDashboard  = ()         => apiClient.get('/api/v1/users/me/dashboar
 const realGetRanking    = (page = 0) => apiClient.get(`/api/v1/ranking?page=${page}`);
 const realGetIncorrects = ()         => apiClient.get('/api/v1/users/me/incorrects');
 
+const realGetStudySettings    = ()         => apiClient.get('/api/v1/users/me/settings');
+const realUpdateStudySettings = (settings) => apiClient.patch('/api/v1/users/me/settings', settings);
+const realGetAlarmSettings    = ()         => apiClient.get('/api/v1/users/me/alarm-settings');
+const realUpdateAlarmSettings = (settings) => apiClient.patch('/api/v1/users/me/alarm-settings', settings);
+
 const realUpdateProfile  = (name, email)                       => apiClient.patch('/api/v1/users/me/profile', { name, email });
 const realUpdatePassword = (currentPassword, newPassword)      => apiClient.patch('/api/v1/users/me/password', { currentPassword, newPassword });
 const realDeleteAccount  = ()                                  => apiClient.delete('/api/v1/users/me');
@@ -196,6 +238,26 @@ export const userService = {
   /** 내 오답 노트 조회 → IncorrectItem[] */
   getIncorrects() {
     return isMockEnabled() ? mockGetIncorrects() : realGetIncorrects();
+  },
+
+  /** 학습 설정 조회 */
+  getStudySettings() {
+    return isMockEnabled() ? mockGetStudySettings() : realGetStudySettings();
+  },
+
+  /** 학습 설정 업데이트 */
+  updateStudySettings(settings) {
+    return isMockEnabled() ? mockUpdateStudySettings(settings) : realUpdateStudySettings(settings);
+  },
+
+  /** 알림 설정 조회 */
+  getAlarmSettings() {
+    return isMockEnabled() ? mockGetAlarmSettings() : realGetAlarmSettings();
+  },
+
+  /** 알림 설정 업데이트 */
+  updateAlarmSettings(settings) {
+    return isMockEnabled() ? mockUpdateAlarmSettings(settings) : realUpdateAlarmSettings(settings);
   },
 
   /**
