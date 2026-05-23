@@ -147,6 +147,13 @@ const mockDeleteUser = async (userId, reason) => {
   return { reason };
 };
 
+const mockUpdateUserExp = async (ourId, exp) => {
+  await sleep(ADMIN_CONFIG.mockDelayMs);
+  const user = MOCK_USERS.find((u) => u.ourId === Number(ourId));
+  if (user) user.totalExp = exp;
+  return { resultCode: 200 };
+};
+
 const mockGetLevelDistribution = async () => {
   await sleep(ADMIN_CONFIG.mockDelayMs);
   return { ...MOCK_LEVEL_DISTRIBUTION };
@@ -250,6 +257,7 @@ const realGetUser          = (id)                        => apiClient.get(`/api/
 const realUpdateUserStatus = (userId, status, reason)    => apiClient.patch(`/api/v1/admin/users/${userId}/status`, { status, reason });
 const realDeleteUser       = (userId, reason)            => apiClient.delete(`/api/v1/admin/users/${userId}`, { body: { reason } });
 const realGetLevelDist     = ()                          => apiClient.get('/api/v1/admin/users/level-distribution');
+const realUpdateUserExp    = (ourId, exp)                 => apiClient.patch(`/api/v1/admin/users/${ourId}/exp`, { exp });
 
 const realGetQuizzes    = ({ userId, difficulty, page } = {}) => {
   const params = new URLSearchParams();
@@ -312,6 +320,13 @@ export const adminService = {
 
   /** 레벨 분포 통계 → { totalCount, distribution } */
   getLevelDistribution()                  { return isMock() ? mockGetLevelDistribution() : realGetLevelDist(); },
+
+  /**
+   * 사용자 경험치 직접 수정 → { resultCode }
+   * @param {number} ourId
+   * @param {number} exp - 0 이상 정수
+   */
+  updateUserExp(ourId, exp)               { return isMock() ? mockUpdateUserExp(ourId, exp) : realUpdateUserExp(ourId, exp); },
 
   /**
    * 퀴즈 전체 목록 → { totalCount, quizzes }

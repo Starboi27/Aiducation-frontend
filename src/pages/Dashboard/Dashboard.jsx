@@ -5,11 +5,13 @@ import { Card, StatCard, ExpCard, NotificationItem } from '../../components/mole
 import { Button, Badge } from '../../components/atoms';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
+import { reviewService } from '../../services/reviewService';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const { user, notifications } = useApp();
   const [dashboardData, setDashboardData] = useState(null);
+  const [todayReviews, setTodayReviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -17,8 +19,12 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       try {
         setIsLoading(true);
-        const data = await userService.getDashboard();
+        const [data, reviews] = await Promise.all([
+          userService.getDashboard(),
+          reviewService.getTodayReviews().catch(() => []),
+        ]);
         setDashboardData(data);
+        setTodayReviews(reviews ?? []);
       } catch (error) {
         console.error('대시보드 데이터를 불러오는데 실패했습니다:', error);
       } finally {
@@ -137,17 +143,45 @@ const Dashboard = () => {
         </div>
 
         <div className="dashboard__col-right">
+          {todayReviews.length > 0 && (
+            <Card
+              title="오늘의 복습 알람"
+              headerAction={<Badge variant="warning">{todayReviews.length}</Badge>}
+            >
+              <div className="dashboard__reviews">
+                {todayReviews.map((r) => (
+                  <div key={r.scheduleId} className="dashboard__review-item" onClick={() => navigate('/review')} style={{ cursor: 'pointer' }}>
+                    <div className="dashboard__review-info">
+                      <p className="dashboard__review-concept">{r.conceptName}</p>
+                      <p className="dashboard__review-subject">{r.subjectName} · {r.quizCount}문제</p>
+                    </div>
+                    <Badge variant="primary">복습</Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card
             title="최근 알림"
             headerAction={<Badge variant="primary">{dashboardData?.unreadNotificationCount ?? notifications.length}</Badge>}
           >
             <div className="dashboard__notifs">
-              {(dashboardData?.recentNotifications || notifications).map(n => (
-                <NotificationItem key={n.id || n.createdAt} {...n} />
-              ))}
-              {(!dashboardData?.recentNotifications?.length && !notifications.length) && (
-                <p className="no-data">새로운 알림이 없습니다.</p>
-              )}
+              {(() => {
+                const apiNotifs = dashboardData?.recentNotifications;
+                const list = apiNotifs?.length > 0 ? apiNotifs : notifications;
+                if (!list.length) return <p className="no-data">새로운 알림이 없습니다.</p>;
+                return list.map(n => (
+                  <NotificationItem
+                    key={n.id || n.createdAt}
+                    type={n.type?.toLowerCase() || 'info'}
+                    title={n.title || n.message}
+                    message={n.title ? n.message : undefined}
+                    time={n.time || (n.createdAt ? new Date(n.createdAt).toLocaleString('ko-KR') : '')}
+                    read={n.read ?? false}
+                  />
+                ));
+              })()}
             </div>
           </Card>
         </div>

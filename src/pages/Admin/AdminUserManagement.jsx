@@ -11,6 +11,8 @@ const AdminUserManagement = () => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editExpId, setEditExpId] = useState(null);
+  const [expInput, setExpInput] = useState('');
 
   useEffect(() => {
     loadUsers();
@@ -54,6 +56,28 @@ const AdminUserManagement = () => {
     }
   };
 
+  const handleEditExpStart = (user) => {
+    setEditExpId(user.ourId);
+    setExpInput(String(user.totalExp ?? 0));
+  };
+
+  const handleUpdateExp = async (user) => {
+    const exp = Number(expInput);
+    if (isNaN(exp) || exp < 0) {
+      alert('경험치는 0 이상의 숫자여야 합니다.');
+      return;
+    }
+    try {
+      await adminService.updateUserExp(user.ourId, exp);
+      setUsers((prev) =>
+        prev.map((u) => (u.ourId === user.ourId ? { ...u, totalExp: exp } : u))
+      );
+      setEditExpId(null);
+    } catch (err) {
+      alert(`경험치 수정 실패: ${err.message}`);
+    }
+  };
+
   const handleDelete = async (user) => {
     if (!window.confirm(`"${user.name}" 사용자를 삭제하시겠습니까?`)) return;
     const reason = '관리자 삭제';
@@ -71,6 +95,30 @@ const AdminUserManagement = () => {
     { header: '이메일', accessor: 'email'  },
     { header: '역할',   render: (user) => <AdminBadge role={user.role} /> },
     { header: '레벨',   accessor: 'level'  },
+    {
+      header: '경험치',
+      render: (user) =>
+        editExpId === user.ourId ? (
+          <div className="table-actions">
+            <Input
+              type="number"
+              value={expInput}
+              onChange={(e) => setExpInput(e.target.value)}
+              style={{ width: '80px' }}
+            />
+            <Button variant="outline" size="small" onClick={() => handleUpdateExp(user)}>확인</Button>
+            <Button variant="ghost"   size="small" onClick={() => setEditExpId(null)}>취소</Button>
+          </div>
+        ) : (
+          <span
+            style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+            onClick={() => handleEditExpStart(user)}
+            title="클릭하여 수정"
+          >
+            {user.totalExp?.toLocaleString() ?? '-'}
+          </span>
+        ),
+    },
     {
       header: '상태',
       render: (user) => (

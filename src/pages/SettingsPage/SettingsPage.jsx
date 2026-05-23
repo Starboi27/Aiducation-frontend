@@ -15,10 +15,11 @@ import { useApp } from "../../context/AppContext";
 import { Button, Input } from "../../components/atoms";
 import { Card } from "../../components/molecules";
 import { userService } from "../../services/userService";
+import { reviewService } from "../../services/reviewService";
 import "./SettingsPage.css";
 
 const SettingsPage = () => {
-  const { user } = useApp();
+  const { user, setUser } = useApp();
   
   // Loading & Messages
   const [isLoading, setIsLoading] = useState(true);
@@ -69,10 +70,15 @@ const SettingsPage = () => {
   const fetchSettings = async () => {
     setIsLoading(true);
     try {
-      const [study, alarm] = await Promise.all([
+      const [study, alarm, alarmTime] = await Promise.all([
         userService.getStudySettings(),
-        userService.getAlarmSettings()
+        userService.getAlarmSettings(),
+        reviewService.getAlarmTime().catch(() => null),
       ]);
+      // notifications/alarm-time이 있으면 해당 값을 studyAlarmTime 우선 적용
+      if (alarmTime?.studyAlarmTime) {
+        study.studyAlarmTime = alarmTime.studyAlarmTime;
+      }
       applySettings(study, alarm);
     } catch (err) {
       console.error("Failed to fetch settings:", err);
@@ -84,10 +90,14 @@ const SettingsPage = () => {
 
   const refetchSettings = async () => {
     try {
-      const [study, alarm] = await Promise.all([
+      const [study, alarm, alarmTime] = await Promise.all([
         userService.getStudySettings(),
-        userService.getAlarmSettings()
+        userService.getAlarmSettings(),
+        reviewService.getAlarmTime().catch(() => null),
       ]);
+      if (alarmTime?.studyAlarmTime) {
+        study.studyAlarmTime = alarmTime.studyAlarmTime;
+      }
       applySettings(study, alarm);
     } catch (err) {
       console.error("Silent refetch failed:", err);
@@ -105,6 +115,7 @@ const SettingsPage = () => {
     setIsSaving(true);
     try {
       await userService.updateProfile(profile.name, profile.email);
+      setUser((prev) => ({ ...prev, name: profile.name, email: profile.email }));
       showMsg('success', '프로필이 저장되었습니다.');
     } catch (err) {
       showMsg('error', '프로필 저장 실패: ' + err.message);
@@ -140,13 +151,17 @@ const SettingsPage = () => {
     setIsSaving(true);
     try {
       const [hour, minute] = studySettings.studyAlarmTime.split(':').map(Number);
+      const alarmTime = { hour, minute, second: 0, nano: 0 };
       const payload = {
         dailyGoal,
         defaultDifficulty: Number(studySettings.defaultDifficulty),
-        studyAlarmTime: { hour, minute, second: 0, nano: 0 },
+        studyAlarmTime: alarmTime,
       };
-      
-      await userService.updateStudySettings(payload);
+
+      await Promise.all([
+        userService.updateStudySettings(payload),
+        reviewService.updateAlarmTime(alarmTime),
+      ]);
       showMsg('success', '학습 설정이 저장되었습니다.');
     } catch (err) {
       showMsg('error', '학습 설정 저장 실패: ' + err.message);

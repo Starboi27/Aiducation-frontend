@@ -8,6 +8,8 @@
  *   POST   /api/v1/reviews/{scheduleId}/complete      → 204
  *   POST   /api/v1/notifications/subscribe            { Subscribe } → 200
  *   DELETE /api/v1/notifications/subscribe            { Unsubscribe } → 204
+ *   GET    /api/v1/notifications/alarm-time           → { studyAlarmTime: LocalTime }
+ *   PATCH  /api/v1/notifications/alarm-time           { studyAlarmTime: LocalTime } → 200
  *
  * Types:
  *   ReviewSchedule = { scheduleId, conceptName, subjectName, quizCount, dueDate }
@@ -84,6 +86,19 @@ async function mockToggleAlarm(enabled) {
   return { mailAlram: enabled };
 }
 
+let MOCK_ALARM_TIME = { hour: 20, minute: 0, second: 0, nano: 0 };
+
+async function mockGetAlarmTime() {
+  await sleep(REVIEW_CONFIG.mockDelayMs);
+  return { studyAlarmTime: { ...MOCK_ALARM_TIME } };
+}
+
+async function mockUpdateAlarmTime(alarmTime) {
+  await sleep(REVIEW_CONFIG.mockDelayMs);
+  MOCK_ALARM_TIME = { ...MOCK_ALARM_TIME, ...alarmTime };
+  return { studyAlarmTime: { ...MOCK_ALARM_TIME } };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REAL API IMPLEMENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,6 +119,12 @@ const realGetAlarmStatus = () =>
 
 const realToggleAlarm = (enabled) =>
   apiClient.put('/api/v1/notifications/alarm', { enabled });
+
+const realGetAlarmTime = () =>
+  apiClient.get('/api/v1/notifications/alarm-time');
+
+const realUpdateAlarmTime = (alarmTime) =>
+  apiClient.patch('/api/v1/notifications/alarm-time', { studyAlarmTime: alarmTime });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
@@ -152,5 +173,18 @@ export const reviewService = {
    */
   toggleAlarm(enabled) {
     return isMockEnabled() ? mockToggleAlarm(enabled) : realToggleAlarm(enabled);
+  },
+
+  /** 학습 알림 시간 조회 → { studyAlarmTime: { hour, minute, second, nano } } */
+  getAlarmTime() {
+    return isMockEnabled() ? mockGetAlarmTime() : realGetAlarmTime();
+  },
+
+  /**
+   * 학습 알림 시간 수정 → { studyAlarmTime: LocalTime }
+   * @param {{ hour: number, minute: number, second?: number, nano?: number }} alarmTime
+   */
+  updateAlarmTime(alarmTime) {
+    return isMockEnabled() ? mockUpdateAlarmTime(alarmTime) : realUpdateAlarmTime(alarmTime);
   },
 };
