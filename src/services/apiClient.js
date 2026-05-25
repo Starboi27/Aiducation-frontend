@@ -77,11 +77,13 @@ function clearAuthAndRedirect() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem('user_info');
-  window.location.href = '/login';
+  // window.location.href 강제 이동 대신 커스텀 이벤트 dispatch →
+  // AppContext가 수신 후 React Router를 통해 /login으로 이동 (페이지 새로고침 없음)
+  window.dispatchEvent(new CustomEvent('auth:unauthorized'));
 }
 
 async function request(method, path, options = {}) {
-  const { body, isFormData = false, _retryCount = 0 } = options;
+  const { body, isFormData = false, _retryCount = 0, silent401 = false } = options;
 
   const headers = {};
 
@@ -123,7 +125,8 @@ async function request(method, path, options = {}) {
         } catch (refreshErr) {
           isRefreshing = false;
           onRefreshFailed(refreshErr);
-          clearAuthAndRedirect();
+          // silent401: 해설·힌트 등 부가 API는 로그아웃 없이 에러만 throw
+          if (!silent401) clearAuthAndRedirect();
           throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
         }
       }
@@ -141,7 +144,7 @@ async function request(method, path, options = {}) {
     }
 
     // 재시도 후에도 401이거나 공개 경로인 경우
-    if (!isPublicPath) {
+    if (!isPublicPath && !silent401) {
       clearAuthAndRedirect();
     }
 

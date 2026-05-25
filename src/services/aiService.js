@@ -187,28 +187,42 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
 
 /**
  * 개념(conceptId) 기반 퀴즈 생성.
+ * POST로 생성 요청 → GET으로 폴링하여 문제 배열 반환.
  * options.conceptId 필수 (실제 API 모드).
  */
 async function realGenerateQuiz(topicName, subjectName, options) {
   const { conceptId } = options;
   if (!conceptId) throw new Error('실제 API 모드에서는 options.conceptId가 필요합니다.');
 
-  const data = await apiClient.post(`/api/v1/concepts/${conceptId}/generate-quiz`, {
+  await apiClient.post(`/api/v1/concepts/${conceptId}/generate-quiz`, {
     count: options.count ?? AI_CONFIG.defaultQuizCount,
     difficulty: options.difficulty ?? 3,
   });
 
-  const quizzes = data.questions ?? data ?? [];
-  return quizzes.map((q, i) => ({
-    id: q.quizId ?? q.id ?? `q_${Date.now()}_${i}`,
-    topic: topicName,
-    difficulty: q.difficulty ?? 3,
-    question: q.question,
-    options: q.options ?? [],
-    // 백엔드 answer는 1-5 (1-based) → 프론트 correctIndex는 0-based
-    correctIndex: (q.answer ?? 1) - 1,
-    explanation: q.explanation ?? '',
-  }));
+  // 백엔드가 비동기 생성 → GET으로 폴링 (최대 20회 × 3초 = 60초)
+  const MAX_ATTEMPTS = 20;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    await sleep(3000);
+    const data = await apiClient.get(`/api/v1/concepts/${conceptId}/quizzes`);
+    const quizzes = data.questions ?? data.quizzes ?? (Array.isArray(data) ? data : null);
+    if (Array.isArray(quizzes) && quizzes.length > 0) {
+      const requestedCount = options.count ?? AI_CONFIG.defaultQuizCount;
+      // 최신 생성분(가장 뒤)에서 count개만 사용
+      const sliced = quizzes.slice(-requestedCount);
+      return sliced.map((q, idx) => ({
+        id: q.quizId ?? q.id ?? `q_${Date.now()}_${idx}`,
+        topic: topicName,
+        difficulty: q.difficulty ?? options.difficulty ?? 3,
+        question: q.question,
+        // 백엔드 필드명: examples (options 아님)
+        options: q.examples ?? q.options ?? [],
+        // 백엔드 answer는 1-based → 프론트 correctIndex는 0-based
+        correctIndex: q.answer != null ? q.answer - 1 : null,
+        explanation: q.explanation ?? '',
+      }));
+    }
+  }
+  throw new Error('퀴즈 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
 }
 
 async function mockAnalyzeWrongAnswer(question, userAnswerText) {
@@ -223,7 +237,8 @@ async function mockAnalyzeWrongAnswer(question, userAnswerText) {
 async function realAnalyzeWrongAnswer(question, userAnswerText, options = {}) {
   const { quizId } = options;
   if (!quizId) throw new Error('실제 API 모드에서는 options.quizId가 필요합니다.');
-  const data = await apiClient.get(`/api/v1/quizzes/${quizId}/explanation`);
+  // 401 시 로그아웃 없이 에러만 throw (silent401)
+  const data = await apiClient.get(`/api/v1/quizzes/${quizId}/explanation`, { silent401: true });
   return data.explanation ?? data;
 }
 
@@ -274,7 +289,8 @@ async function mockGetHint(quizId) {
 }
 
 async function realGetHint(quizId) {
-  return apiClient.get(`/api/v1/quizzes/${quizId}/hint`);
+  // 401 시 로그아웃 없이 에러만 throw (silent401)
+  return apiClient.get(`/api/v1/quizzes/${quizId}/hint`, { silent401: true });
 }
 
 // ── Mock 콘텐츠 DB (관리자용) ──────────────────────────────────────────────────
@@ -424,6 +440,24 @@ export const aiService = {
     return AI_CONFIG.useMock
       ? mockGetHint(quizId)
       : realGetHint(quizId);
+  },
+
+  /**
+   * 퀴즈 해설 전체 응답 조회 (answer + explanation 모두 포함)
+   * GET /api/v1/quizzes/{quizId}/explanation
+   *
+   * @param {string|number} quizId
+   * @returns {Promise<{ explanation?: string, answer?: number, correctAnswer?: number }>}
+   */
+  getExplanation(quizId) {
+    if (AI_CONFIG.useMock) {
+      return Promise.resolve({
+        explanation: `[Mock 해설] 퀴즈 ${quizId}번 문제에 대한 자세한 해설입니다.`,
+        answer: Math.floor(Math.random() * 5) + 1,
+      });
+    }
+    // 401 시 로그아웃 없이 에러만 throw (silent401)
+    return apiClient.get(`/api/v1/quizzes/${quizId}/explanation`, { silent401: true });
   },
 
   /**

@@ -87,10 +87,10 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
     setModalTarget({ subjectId, topicId: 'all' });
   };
 
-  const handleDifficultyConfirm = (difficulty) => {
+  const handleDifficultyConfirm = ({ difficulty, count }) => {
     const { subjectId, topicId } = modalTarget;
     setModalTarget(null);
-    navigate(`/quiz/${subjectId}/${topicId}?difficulty=${difficulty}`);
+    navigate(`/quiz/${subjectId}/${topicId}?difficulty=${difficulty}&count=${count}`);
   };
 
   // ── Render ─────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
           <div className="pending__body">
             <p className="pending__title">
               <Sparkles size={14} />
-              AI가 <strong>"{pendingSubject.name}"</strong> 파일을 분석했습니다!
+              AI가 <strong>"{pendingSubject.name ?? pendingSubject.subjectName}"</strong> 파일을 분석했습니다!
             </p>
             <p className="pending__sub">
               {pendingSubject.topics.length}개 주제를 발견했습니다. 과목으로 저장하시겠습니까?

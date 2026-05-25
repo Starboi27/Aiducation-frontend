@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getRank } from "../components/molecules/ExpCard/ExpCard";
 import { authService } from "../services/authService";
 
@@ -22,6 +22,8 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user_info");
+      localStorage.removeItem("subjects");
+      setSubjects([]);
       setUser(null);
     }
   };
@@ -58,6 +60,20 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // apiClient가 401 재발급 실패 시 dispatch하는 이벤트 수신 →
+  // window.location.href 강제 이동 없이 React 상태만 초기화 (Router가 /login으로 이동)
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+      setSubjects([]);
+      setUser(null);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -81,7 +97,14 @@ export const AppProvider = ({ children }) => {
 
   // ── Subjects (과목) 상태 ──────────────────────────────────────
   // subject: { id, name, source: 'manual'|'auto', createdAt, topics: [{id, name, quizCount, color}] }
-  const [subjects, setSubjects] = useState([]);
+  const [subjects, setSubjects] = useState(() => {
+    try {
+      const saved = localStorage.getItem("subjects");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // 각 토픽별로 캐시된 퀴즈 문항을 저장: { [topicId]: Question[] }
   const [topicQuestions, _setTopicQuestions] = useState({});
@@ -107,6 +130,10 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  useEffect(() => {
+    localStorage.setItem("subjects", JSON.stringify(subjects));
+  }, [subjects]);
+
   // ── Subject Actions ──────────────────────────────────────────
   const addSubject = (subject) => {
     const newSubject = {
@@ -114,6 +141,7 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString(),
       topics: [],
       ...subject,
+      name: subject.name ?? subject.subjectName,
     };
     setSubjects((prev) => [newSubject, ...prev]);
     return newSubject;
@@ -160,9 +188,10 @@ export const AppProvider = ({ children }) => {
 
   const getSubjectById = (id) => subjects.find((s) => s.id === id);
 
-  const setTopicQuestions = (topicId, questions) => {
+  // useCallback으로 참조 안정화 — 의존하는 컴포넌트(QuizPage)의 불필요한 이펙트 재실행 방지
+  const setTopicQuestions = useCallback((topicId, questions) => {
     _setTopicQuestions((prev) => ({ ...prev, [topicId]: questions }));
-  };
+  }, []);
 
   // ── EXP Actions ──────────────────────────────────────────────
   const addExp = (exp) => {
@@ -322,6 +351,13 @@ export const AppProvider = ({ children }) => {
     );
   };
 
+  // submitAll 응답에서 받은 정답 인덱스(0-based) 업데이트
+  const updateWrongAnswerCorrectIndex = (id, correctIndex) => {
+    setWrongAnswers((prev) =>
+      prev.map((q) => (String(q.id) === String(id) ? { ...q, correctIndex } : q)),
+    );
+  };
+
   const addNotification = (notif) => {
     setNotifications((prev) => [
       { ...notif, id: Date.now(), time: "방금", read: false },
@@ -372,6 +408,7 @@ export const AppProvider = ({ children }) => {
         setTopicQuestions,
         masterWrongAnswer,
         updateWrongAnswerExplanation,
+        updateWrongAnswerCorrectIndex,
       }}
     >
       {children}

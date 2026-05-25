@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { QuizEngine } from '../../components/organisms';
 import { Button } from '../../components/atoms';
@@ -32,12 +32,15 @@ const MOCK_QUESTIONS = [
 const QuizPage = () => {
   const [complete, setComplete] = useState(false);
   const [results, setResults] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { subjectId, topicId } = useParams();
-  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult } = useApp();
+  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex } = useApp();
 
   const location = useLocation();
-  const difficulty = new URLSearchParams(location.search).get('difficulty') ?? 'normal';
+  const _params = new URLSearchParams(location.search);
+  const difficulty = Number(_params.get('difficulty')) || 3;
+  const count = Number(_params.get('count')) || 10;
 
   const [questions, setQuestions] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -61,97 +64,147 @@ const QuizPage = () => {
       ? `"${subject.name}" 과목의 전체 주제 퀴즈입니다.`
       : '제한 시간 내에 문제를 풀고 최고 경험치를 획득하세요.';
 
+  // ref로 최신값 유지 — 이펙트 의존성에 넣지 않기 위함 (불필요한 재실행 방지)
+  const topicQuestionsRef = useRef(topicQuestions);
+  const setTopicQuestionsRef = useRef(setTopicQuestions);
+  const getSubjectByIdRef = useRef(getSubjectById);
+  useEffect(() => { topicQuestionsRef.current = topicQuestions; });
+  useEffect(() => { setTopicQuestionsRef.current = setTopicQuestions; });
+  useEffect(() => { getSubjectByIdRef.current = getSubjectById; });
+
   useEffect(() => {
-    // URL param으로 들어온 topic 처리가 아니라면 기본 mock 제공
     if (!subjectId) {
       setQuestions(MOCK_QUESTIONS);
       return;
     }
 
-    // AI Service를 통해 문제 생성(또는 캐시에서 로드)
+    // ref에서 최신값 읽기 (의존성 배열 변화 없이 항상 최신 상태 접근)
     const fetchQuestions = async () => {
+      const tqCache = topicQuestionsRef.current;
+      const setTQ = setTopicQuestionsRef.current;
+      const subj = getSubjectByIdRef.current(subjectId);
+
       setLoading(true);
       try {
         if (topicId === 'all') {
-          // 모든 토픽 퀴즈 가져오기
-          const allTopics = subject?.topics || [];
+          const allTopics = subj?.topics || [];
           if (allTopics.length === 0) {
             setQuestions(MOCK_QUESTIONS);
             setLoading(false);
             return;
           }
 
-          // 병렬로 여러 토픽의 문제 로드
           const promises = allTopics.map(async (t) => {
-            // 캐시에 있으면 캐시 사용
-            if (topicQuestions[t.id]) return topicQuestions[t.id];
-            
-            const generated = await aiService.generateQuiz(t.name, subject.name, { count: t.quizCount, difficulty });
+            if (tqCache[t.id]) return tqCache[t.id];
+
+            const generated = await aiService.generateQuiz(t.name, subj.name, {
+              count,
+              difficulty,
+              conceptId: t.id,
+            });
             const enhanced = generated.map(q => ({
-              ...q, subjectId: subject.id, subjectName: subject.name
+              ...q, subjectId: subj.id, subjectName: subj.name
             }));
-            
-            setTopicQuestions(t.id, enhanced); // 캐시에 저장
+            setTQ(t.id, enhanced);
             return enhanced;
           });
 
           const results = await Promise.all(promises);
-          const combined = results.flat(); // 모든 문제들을 1차원 배열로 합침
-          
-          setQuestions(combined);
-          
+          setQuestions(results.flat().slice(0, count));
+
         } else {
-          // 특정 토픽의 문제만 가져오기
-          const currentTopic = subject?.topics?.find(t => t.id === topicId);
+          const currentTopic = subj?.topics?.find(t => t.id === topicId);
           if (!currentTopic) {
             setQuestions(MOCK_QUESTIONS);
             setLoading(false);
             return;
           }
 
-          // 캐시 확인
-          if (topicQuestions[currentTopic.id]) {
-            setQuestions(topicQuestions[currentTopic.id]);
+          if (tqCache[currentTopic.id]) {
+            setQuestions(tqCache[currentTopic.id]);
             setLoading(false);
             return;
           }
 
-          const generated = await aiService.generateQuiz(currentTopic.name, subject.name, {
-            count: currentTopic.quizCount,
+          const generated = await aiService.generateQuiz(currentTopic.name, subj.name, {
+            count,
             difficulty,
+            conceptId: currentTopic.id,
           });
           const enhanced = generated.map(q => ({
-            ...q, subjectId: subject.id, subjectName: subject.name
+            ...q, subjectId: subj.id, subjectName: subj.name
           }));
-          
-          setTopicQuestions(currentTopic.id, enhanced);
+          setTQ(currentTopic.id, enhanced);
           setQuestions(enhanced);
         }
       } catch (err) {
         console.error('Quiz Generation Error: ', err);
         setError(err.message);
-        setQuestions(MOCK_QUESTIONS); // 실패 시 Fallback 지원
+        setQuestions(MOCK_QUESTIONS);
       } finally {
         setLoading(false);
       }
     };
 
     fetchQuestions();
-  }, [subjectId, topicId, subject, topicQuestions, setTopicQuestions]);
+  // subjectId·topicId·count·difficulty 변경 시에만 재실행 (함수·캐시 참조 변화 무시)
+  }, [subjectId, topicId, count, difficulty]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleComplete = (res) => {
-    // 퀴즈 완료 시 정답수와 전체 문제수를 계산합니다.
-    const correctCount = res.filter(r => r.correct).length;
-    const totalCount = res.length;
+  const handleComplete = useCallback(async (res) => {
+    setSubmitting(true);
+    // submitAll로 서버 정답 판정을 받아 correctIndex null 문제를 해결
+    const answers = res.map(r => ({
+      quizId: r.questionId,
+      answer: r.selectedAnswer ?? 0,
+    }));
 
-    // AI 가중치 정답률 계산기 및 경험치 보상 시스템 작동! 🚀
+    let finalRes = res;
+    try {
+      const submitResponse = await aiService.submitAll(answers);
+      console.log('[DEBUG] submitAll 응답:', JSON.stringify(submitResponse));
+
+      if (submitResponse?.results?.length) {
+        finalRes = res.map((r, i) => {
+          const srv = submitResponse.results.find(s => String(s.quizId) === String(r.questionId))
+            ?? submitResponse.results[i];
+          return srv ? { ...r, correct: srv.correct } : r;
+        });
+
+        // 백엔드 필드명이 다를 수 있어 다양한 이름으로 시도
+        submitResponse.results.forEach((srv) => {
+          const correctAns =
+            srv.correctAnswer ?? srv.answer ?? srv.correct_answer ??
+            srv.correctOption ?? srv.correctIdx;
+          if (correctAns != null) {
+            updateWrongAnswerCorrectIndex(String(srv.quizId), Number(correctAns) - 1);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('submitAll 실패 — 로컬 정답 판정 사용:', e.message);
+    }
+
+    const correctCount = finalRes.filter(r => r.correct).length;
+    const totalCount = finalRes.length;
+
     if (submitQuizResult) {
       submitQuizResult(correctCount, totalCount);
     }
 
-    setResults(res);
+    setResults(finalRes);
+    setSubmitting(false);
     setComplete(true);
-  };
+  }, [submitQuizResult, updateWrongAnswerCorrectIndex]);
+
+  if (submitting) {
+    return (
+      <div className="quiz-page__loading">
+        <Loader2 size={48} className="animate-spin text-primary" style={{ margin: '0 auto', marginBottom: '16px' }} />
+        <h2>결과를 집계하고 있습니다...</h2>
+        <p>잠시만 기다려주세요.</p>
+      </div>
+    );
+  }
 
   if (complete) {
     const totalExp = results.reduce((acc, curr) => acc + curr.expGained, 0);
@@ -207,6 +260,12 @@ const QuizPage = () => {
           <Loader2 size={48} className="animate-spin text-primary" style={{ margin: '0 auto', marginBottom: '16px' }} />
           <h2>AI가 맞춤형 퀴즈를 생성하고 있습니다...</h2>
           <p>잠시만 기다려주세요.</p>
+        </div>
+      ) : error ? (
+        <div className="quiz-page__error">
+          <p>퀴즈 생성 중 오류가 발생했습니다.</p>
+          <p style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem' }}>{error}</p>
+          <Button onClick={() => navigate('/subjects')} style={{ marginTop: '1rem' }}>돌아가기</Button>
         </div>
       ) : questions && questions.length > 0 ? (
         <QuizEngine 

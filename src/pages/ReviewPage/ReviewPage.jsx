@@ -1,16 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { aiService } from '../../services/aiService';
 import QuizOption from '../../components/molecules/QuizOption/QuizOption';
 import { Button, Badge } from '../../components/atoms';
 import {
   BookX, CheckCircle2, FolderOpen, ChevronLeft, ChevronRight,
-  AlertCircle, Bookmark, Star, Zap, RotateCcw, CheckCheck,
+  AlertCircle, Bookmark, RotateCcw, CheckCheck,
 } from 'lucide-react';
 import './ReviewPage.css';
 
 // ── 상수 ───────────────────────────────────────────────────────────────────
-// 단계: 1=4지선다 풀기, 2=해설 숙지
-const STEP = { RETRY: 1, DONE: 2 };
 const LABELS = ['A', 'B', 'C', 'D', 'E'];
 
 // QuizEngine과 동일한 난이도 표시 콘스턴
@@ -30,34 +29,71 @@ function shuffleWithCorrect(options, correctIndex) {
 
 // ── 단일 오답 복습 카드 ─────────────────────────────────────────────────────
 const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
-  // 원본 options & correctIndex 확정
+  const { updateWrongAnswerCorrectIndex } = useApp();
+
+  // 원본 options 확정
   const rawOptions = useMemo(() => {
     if (question.options && question.options.length > 0) return question.options;
-    const correctAns = question.answer || '정답';
-    const fakes = ['선택지 가', '선택지 나', '선택지 다'];
-    return [correctAns, ...fakes].slice(0, 4);
-  }, [question]);
+    const fakes = ['선택지 가', '선택지 나', '선택지 다', '선택지 라', '선택지 마'];
+    return fakes;
+  }, [question.options]);
 
+  // correctIndex: question prop이 업데이트되면 반영
   const rawCorrectIndex = useMemo(() => {
-    if (typeof question.correctIndex === 'number') return question.correctIndex;
-    return rawOptions.findIndex(o => o === question.answer);
-  }, [question, rawOptions]);
+    if (question.correctIndex != null && typeof question.correctIndex === 'number') {
+      return question.correctIndex;
+    }
+    return -1;
+  }, [question.correctIndex]);
+
+  // 서버에서 정답·해설 가져오기 (마운트 시 1회)
+  const [fetchedExplanation, setFetchedExplanation] = useState('');
+  useEffect(() => {
+    const id = question.id;
+    if (!id || isNaN(Number(id))) return;
+
+    aiService.getExplanation(id)
+      .then((data) => {
+        console.log('[DEBUG] getExplanation 응답:', JSON.stringify(data));
+        // 해설 저장
+        const exp = typeof data === 'string' ? data : (data?.explanation ?? '');
+        if (exp) setFetchedExplanation(exp);
+
+        // 정답 인덱스 업데이트 (아직 없는 경우)
+        const ans = data?.answer ?? data?.correctAnswer ?? data?.correct_answer;
+        if (ans != null && rawCorrectIndex < 0) {
+          updateWrongAnswerCorrectIndex(String(id), Number(ans) - 1);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
 
   // 초기 셔플 (마운트 시 1회)
-  const initialShuffle = useMemo(
-    () => shuffleWithCorrect(rawOptions, rawCorrectIndex),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [] // question 교체 시 ReviewCard 자체가 key로 리마운트되므로 한 번만 계산
+  const [shuffledOptions, setShuffledOptions] = useState(
+    () => shuffleWithCorrect(rawOptions, rawCorrectIndex).shuffledOptions
+  );
+  const [correctIndex, setCorrectIndex] = useState(
+    () => shuffleWithCorrect(rawOptions, rawCorrectIndex).newCorrectIndex
   );
 
-  const [shuffledOptions, setShuffledOptions] = useState(initialShuffle.shuffledOptions);
-  const [correctIndex,    setCorrectIndex]    = useState(initialShuffle.newCorrectIndex);
+  // rawCorrectIndex가 늦게 업데이트되면 셔플된 배열에서 올바른 위치로 sync
+  useEffect(() => {
+    if (rawCorrectIndex < 0) return;
+    const correctText = rawOptions[rawCorrectIndex];
+    const newCI = shuffledOptions.findIndex(o => o === correctText);
+    if (newCI >= 0) setCorrectIndex(newCI);
+  }, [rawCorrectIndex, rawOptions, shuffledOptions]);
 
-  // 풀이 상태
-  const [step,          setStep]          = useState(STEP.RETRY);
+  // 풀이 상태 (step 제거 — 제출 즉시 정답+해설 공개)
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [answered,      setAnswered]      = useState(false);
   const [isCorrect,     setIsCorrect]     = useState(false);
+
+  const noAnswer = correctIndex < 0;
+  const displayExplanation = question.explanation || fetchedExplanation;
+  // 셔플된 선택지 기준으로 정답 텍스트 표시
+  const correctAnswerText = correctIndex >= 0 ? shuffledOptions[correctIndex] : null;
 
   // ── 보기 선택 ───────────────────────────────────────────────────────────
   const handleSelect = (idx) => {
@@ -65,18 +101,15 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
     setSelectedIndex(idx);
   };
 
-  // ── 제출 ────────────────────────────────────────────────────────────────
+  // ── 제출: 맞든 틀리든 즉시 정답+해설 공개 ──────────────────────────────
   const handleSubmit = () => {
     if (selectedIndex === null || answered) return;
-    const correct = selectedIndex === correctIndex;
+    const correct = !noAnswer && selectedIndex === correctIndex;
     setAnswered(true);
     setIsCorrect(correct);
-    if (correct) {
-      setTimeout(() => setStep(STEP.DONE), 800);
-    }
   };
 
-  // ── 다시 시도: 보기를 다시 섞어서 정답 위치 숨김 ──────────────────────
+  // ── 다시 시도: 선택지 셔플 후 재도전 ────────────────────────────────────
   const handleRetry = () => {
     const { shuffledOptions: newOpts, newCorrectIndex: newCI } =
       shuffleWithCorrect(rawOptions, rawCorrectIndex);
@@ -94,7 +127,6 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
       <div className="review-card__header">
         <div className="review-card__badges">
           <Badge variant="warning"><AlertCircle size={12} style={{ marginRight: 4 }} />오답</Badge>
-          {/* 난이도 표시 - QuizEngine과 동일 */}
           {question.difficulty && (
             <Badge variant={DIFFICULTY_COLORS[question.difficulty] || 'info'} size="sm">
               {DIFFICULTY_LABELS[question.difficulty] || '보통'}
@@ -106,102 +138,88 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
             </Badge>
           )}
         </div>
-        {/* step-label만 유지 (도트 제거) */}
         <span className="review-step-label">
-          {step === STEP.RETRY ? '다시 풀기' : '이해 완료'}
+          {answered ? '해설 확인' : '다시 풀기'}
         </span>
+      </div>
+
+      {/* ── 내 이전 답변 ───────────────────────────────────────────── */}
+      <div className="review-my-answer">
+        <span className="review-my-answer__label">내 이전 답변</span>
+        <span className="review-my-answer__text">{question.userAnswer || '(기록 없음)'}</span>
       </div>
 
       {/* ── 문제 ─────────────────────────────────────────────────────── */}
       <h3 className="review-card__question">{question.question}</h3>
 
-      {/* ── 1단계: 내 답변 표시 + 4지선다 ──────────────────────────── */}
-      {step === STEP.RETRY && (
-        <>
-          {/* 내가 틀린 답 */}
-          <div className="review-my-answer">
-            <span className="review-my-answer__label">내 이전 답변</span>
-            <span className="review-my-answer__text">{question.userAnswer || '(기록 없음)'}</span>
-          </div>
+      {/* ── 선택지 ─────────────────────────────────────────────────── */}
+      <div className="review-options">
+        {shuffledOptions.map((opt, idx) => (
+          <QuizOption
+            key={idx}
+            label={LABELS[idx] || String(idx + 1)}
+            text={opt}
+            selected={selectedIndex === idx && !answered}
+            correct={answered && idx === correctIndex}
+            wrong={answered && selectedIndex === idx && idx !== correctIndex}
+            disabled={answered}
+            onClick={() => handleSelect(idx)}
+          />
+        ))}
+      </div>
 
-          {/* 4지선다 */}
-          <div className="review-options">
-            {shuffledOptions.map((opt, idx) => (
-              <QuizOption
-                key={idx}
-                label={LABELS[idx] || String(idx + 1)}
-                text={opt}
-                selected={selectedIndex === idx && !answered}
-                correct={answered && idx === correctIndex}
-                wrong={answered && selectedIndex === idx && idx !== correctIndex}
-                disabled={answered}
-                onClick={() => handleSelect(idx)}
-              />
-            ))}
-          </div>
-
-          {/* 제출 or 결과 */}
-          {!answered ? (
-            <div className="review-card__actions">
-              <Button
-                variant="primary"
-                disabled={selectedIndex === null}
-                onClick={handleSubmit}
-              >
-                정답확인
-              </Button>
-            </div>
-          ) : (
-            <div className={`review-result-banner${isCorrect ? ' review-result-banner--correct' : ' review-result-banner--wrong'}`}>
-              {isCorrect ? (
-                <>
-                  <CheckCircle2 size={20} />
-                  <span>정답입니다! 해설을 확인하세요 ✨</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle size={20} />
-                  <span>아직 아쉬워요. 다시 풀어보세요!</span>
-                  <Button variant="ghost" size="sm" onClick={handleRetry} style={{ marginLeft: 'auto' }}>
-                    다시 시도
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-        </>
+      {/* ── 제출 버튼 (미답변 시) ──────────────────────────────────── */}
+      {!answered && (
+        <div className="review-card__actions">
+          <Button
+            variant="primary"
+            disabled={selectedIndex === null}
+            onClick={handleSubmit}
+          >
+            정답 확인
+          </Button>
+        </div>
       )}
 
-      {/* ── 2단계: 해설 숙지 + 완료 ─────────────────────────────────── */}
-      {step === STEP.DONE && (
+      {/* ── 제출 후: 결과 배너 + 정답 + 해설 + 액션 ───────────────── */}
+      {answered && (
         <>
-          <div className="review-done-banner animate-bounce-in">
-            <Star size={22} className="review-done-banner__star" />
-            <div>
-              <p className="review-done-banner__title">정답 정복! 🎉</p>
-              <p className="review-done-banner__sub">해설을 읽고 완전히 이해했으면 마스터 처리하세요. +50 XP 획득!</p>
-            </div>
-            <Zap size={22} className="review-done-banner__zap" />
+          {/* 결과 배너 */}
+          <div className={`review-result-banner${isCorrect ? ' review-result-banner--correct' : ' review-result-banner--wrong'}`}>
+            {isCorrect ? (
+              <><CheckCircle2 size={20} /><span>정답입니다! 🎉</span></>
+            ) : (
+              <><AlertCircle size={20} /><span>오답이에요. 정답과 해설을 확인하세요.</span></>
+            )}
           </div>
 
           {/* 정답 표시 */}
-          <div className="review-answer-correct">
-            <span className="review-answer-correct__label">정답</span>
-            <span className="review-answer-correct__text">{question.answer}</span>
-          </div>
-
-          {/* 해설 */}
-          {question.explanation && (
-            <div className="review-explanation">
-              <strong>💡 해설</strong>
-              <p>{question.explanation}</p>
+          {correctAnswerText && (
+            <div className="review-answer-correct">
+              <span className="review-answer-correct__label">정답</span>
+              <span className="review-answer-correct__text">{correctAnswerText}</span>
             </div>
           )}
 
-          {/* 완료 액션 - ghost 다음 문제 버튼 제거, 마스터 버튼만 */}
+          {/* 해설 */}
+          <div className="review-explanation">
+            <strong>해설</strong>
+            {displayExplanation ? (
+              <p>{displayExplanation}</p>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                해설을 불러오는 중이거나 백엔드에서 제공하지 않습니다.
+              </p>
+            )}
+          </div>
+
+          {/* 액션 버튼 */}
           <div className="review-card__actions review-card__actions--done">
+            <Button variant="ghost" icon={RotateCcw} onClick={handleRetry}>
+              다시 풀기
+            </Button>
             <Button variant="primary" icon={CheckCheck} onClick={() => onMastered(question.id)}>
-              이해했어요 ✅
+              이해했어요
             </Button>
           </div>
         </>
