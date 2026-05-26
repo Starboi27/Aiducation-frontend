@@ -1,11 +1,19 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../../components/molecules';
-import { Activity, Target, Brain, TrendingUp, Flame, BookOpen, Award } from 'lucide-react';
+import { Activity, Target, Brain, TrendingUp, Flame, BookOpen, Award, Loader2 } from 'lucide-react';
+import { userService } from '../../services/userService';
 import './ReportPage.css';
 
 const ReportPage = () => {
-  const { user, wrongAnswers } = useApp();
+  const { user, wrongAnswers, isWrongAnswersLoading } = useApp();
+  const [dashboardData, setDashboardData] = useState(null);
+
+  useEffect(() => {
+    userService.getDashboard()
+      .then(data => setDashboardData(data))
+      .catch(() => {});
+  }, []);
 
   // 1. 오답 데이터를 기반으로 "세부 주제(Topic)"별 취약점 통계 추출
   const topicStats = useMemo(() => {
@@ -77,9 +85,14 @@ const ReportPage = () => {
   }, [topTopics]);
 
   // 3. 상단에 띄워줄 전체 통계 요약 (Summary)
-  // 단 한 문제라도 풀었을 때만 진짜 내 정답률을 보여주고, 안 풀었으면 '- %' 로 표시하여 하드코딩 오해 방지
-  const hasPlayedQuiz = user?.totalSolved > 0;
-  const displayAccuracy = hasPlayedQuiz ? `${user.accuracy}%` : '0%';
+  // solvedCount는 오늘/이번주 값이라 전체 계산에 부적합 → 서버 correctRate 사용
+  const totalWrong = wrongAnswers.reduce((acc, w) => acc + (w.wrongCount || 1), 0);
+  const hasPlayedQuiz = (dashboardData?.solvedCount ?? 0) > 0 || totalWrong > 0;
+  const rawRate = dashboardData?.correctRate ?? null;
+  const accuracyPct = rawRate === null ? null
+    : rawRate <= 1 ? Math.round(rawRate * 100)
+    : Math.round(rawRate);
+  const displayAccuracy = accuracyPct !== null ? `${accuracyPct}%` : '0%';
 
   const summaryStats = [
     { label: '종합 정답률', value: displayAccuracy, icon: TrendingUp, color: 'var(--color-primary)' },
@@ -109,7 +122,12 @@ const ReportPage = () => {
         ))}
       </div>
 
-      {wrongAnswers.length === 0 ? (
+      {isWrongAnswersLoading ? (
+        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <Loader2 className="animate-spin" size={48} color="var(--color-primary)" style={{ margin: '0 auto 16px' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>오답 데이터를 불러오는 중입니다...</p>
+        </div>
+      ) : wrongAnswers.length === 0 ? (
         <div style={{ padding: '60px 20px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '16px' }}>
           <Brain size={64} style={{ opacity: 0.3, margin: '0 auto 20px', color: 'var(--color-primary)' }} />
           <h3>아직 분석할 데이터가 부족합니다!</h3>

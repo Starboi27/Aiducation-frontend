@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import MainLayout from './components/templates/MainLayout/MainLayout';
 import AdminLayout from './components/templates/AdminLayout/AdminLayout';
-import { Dashboard, UploadPage, QuizPage, ReviewPage, ReportPage, RankingPage, SubjectPage, LoginPage, MyPage, SettingsPage } from './pages';
+import { Dashboard, UploadPage, QuizPage, ReviewPage, ReportPage, RankingPage, SubjectPage, LoginPage, SettingsPage } from './pages';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AdminUserManagement from './pages/Admin/AdminUserManagement';
 import AdminContentManagement from './pages/Admin/AdminContentManagement';
@@ -43,6 +43,8 @@ const AppRoutes = () => {
       {/* OAuth 콜백: 로그인 전 접근 가능 (카카오/구글 소셜 로그인 완료 처리) */}
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
       <Route path="/oauth2/callback" element={<OAuthCallbackPage />} />
+      {/* 카카오: 인가 코드(code=...)를 프론트가 받아 백엔드로 포워딩 */}
+      <Route path="/oauth/kakao/callback" element={<OAuthCallbackPage />} />
       
       {/* 사용자 전용 라우트 */}
       <Route path="/" element={user ? <MainLayout /> : <Navigate to="/login" replace />}>
@@ -54,7 +56,7 @@ const AppRoutes = () => {
         <Route path="review" element={<ReviewPage />} />
         <Route path="report" element={<ReportPage />} />
         <Route path="ranking" element={<RankingPage />} />
-        <Route path="mypage" element={<MyPage />} />
+
         <Route path="settings" element={<SettingsPage />} />
         {/* Fallback routes */}
 

@@ -136,7 +136,11 @@ async function mockGenerateQuiz(topicName, _subjectName, options) {
  */
 async function realAnalyzeDocument(file, onProgress, options = {}) {
   const { subjectId } = options;
-  if (!subjectId) throw new Error('실제 API 모드에서는 options.subjectId가 필요합니다.');
+  // subjectId 없으면 mock으로 폴백 (Create 응답에 subjectId 누락 시 대비)
+  if (!subjectId) {
+    console.warn('[aiService] subjectId 없음 → mock 분석으로 폴백');
+    return mockAnalyzeDocument(file, onProgress);
+  }
 
   // Step 1: 파일 업로드 → 백엔드가 AI 서버에 분석 요청 후 즉시 200 반환
   onProgress?.({ step: 'reading', status: 'active', progress: 0 });
@@ -145,8 +149,8 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
   await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
   onProgress?.({ step: 'analyzing', status: 'active', progress: 33 });
 
-  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 60회 × 3초 = 3분)
-  const MAX_ATTEMPTS = 60;
+  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 40회 × 3초 = 2분)
+  const MAX_ATTEMPTS = 40;
   const INTERVAL_MS = 3000;
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
@@ -167,6 +171,7 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
     if (concepts.length > 0) {
       onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
       return {
+        id: subjectId,
         subjectName: file.name.replace(/\.[^.]+$/, ''),
         fileName: file.name,
         source: 'auto',
@@ -193,6 +198,9 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
 async function realGenerateQuiz(topicName, subjectName, options) {
   const { conceptId } = options;
   if (!conceptId) throw new Error('실제 API 모드에서는 options.conceptId가 필요합니다.');
+  if (isNaN(Number(conceptId))) {
+    return mockGenerateQuiz(topicName, subjectName, options);
+  }
 
   await apiClient.post(`/api/v1/concepts/${conceptId}/generate-quiz`, {
     count: options.count ?? AI_CONFIG.defaultQuizCount,
@@ -237,6 +245,9 @@ async function mockAnalyzeWrongAnswer(question, userAnswerText) {
 async function realAnalyzeWrongAnswer(question, userAnswerText, options = {}) {
   const { quizId } = options;
   if (!quizId) throw new Error('실제 API 모드에서는 options.quizId가 필요합니다.');
+  if (isNaN(Number(quizId))) {
+    return mockAnalyzeWrongAnswer(question, userAnswerText, options);
+  }
   // 401 시 로그아웃 없이 에러만 throw (silent401)
   const data = await apiClient.get(`/api/v1/quizzes/${quizId}/explanation`, { silent401: true });
   return data.explanation ?? data;
@@ -259,7 +270,10 @@ async function mockSubmitAll(answers) {
 }
 
 async function realSubmitAll(answers) {
-  return apiClient.post('/api/v1/quizzes/submit-all', { answers });
+  // mock ID(비정수)가 하나라도 있으면 mock 처리 — 401 → 로그아웃 방지
+  const hasLocalIds = answers.some(({ quizId }) => isNaN(Number(quizId)));
+  if (hasLocalIds) return mockSubmitAll(answers);
+  return apiClient.post('/api/v1/quizzes/submit-all', { answers }, { silent401: true });
 }
 
 // ── 개념별 기존 퀴즈 목록 ──────────────────────────────────────────────────────
@@ -269,6 +283,9 @@ async function mockGetQuizzes(conceptId) {
 }
 
 async function realGetQuizzes(conceptId) {
+  if (isNaN(Number(conceptId))) {
+    return mockGetQuizzes(conceptId);
+  }
   return apiClient.get(`/api/v1/concepts/${conceptId}/quizzes`);
 }
 
@@ -279,6 +296,9 @@ async function mockGetQuiz(quizId) {
 }
 
 async function realGetQuiz(quizId) {
+  if (isNaN(Number(quizId))) {
+    return mockGetQuiz(quizId);
+  }
   return apiClient.get(`/api/v1/quizzes/${quizId}`);
 }
 
@@ -289,6 +309,9 @@ async function mockGetHint(quizId) {
 }
 
 async function realGetHint(quizId) {
+  if (isNaN(Number(quizId))) {
+    return mockGetHint(quizId);
+  }
   // 401 시 로그아웃 없이 에러만 throw (silent401)
   return apiClient.get(`/api/v1/quizzes/${quizId}/hint`, { silent401: true });
 }
@@ -456,6 +479,12 @@ export const aiService = {
         answer: Math.floor(Math.random() * 5) + 1,
       });
     }
+    if (isNaN(Number(quizId))) {
+      return Promise.resolve({
+        explanation: `[Mock 해설] 퀴즈 ${quizId}번 문제에 대한 자세한 해설입니다.`,
+        answer: Math.floor(Math.random() * 5) + 1,
+      });
+    }
     // 401 시 로그아웃 없이 에러만 throw (silent401)
     return apiClient.get(`/api/v1/quizzes/${quizId}/explanation`, { silent401: true });
   },
@@ -465,6 +494,35 @@ export const aiService = {
    */
   getAllContents() {
     return AI_CONFIG.useMock ? mockGetAllContents() : realGetAllContents();
-  }
+  },
+
+  /**
+   * 내 오답 목록 조회 → IncorrectInfo[]
+   * GET /api/v1/users/me/incorrects
+   * IncorrectInfo: { quizId, question, examples, correctAnswer(1-based), explanation, difficulty, conceptName }
+   */
+  async getIncorrects() {
+    if (AI_CONFIG.useMock) {
+      await sleep(AI_CONFIG.mockDelayMs);
+      return [];
+    }
+    const data = await apiClient.get('/api/v1/users/me/incorrects');
+    const list = data?.incorrects ?? (Array.isArray(data) ? data : []);
+    // 백엔드 필드 → 프론트 포맷 변환
+    return list.map((item) => ({
+      id: String(item.quizId),
+      question: item.question,
+      options: item.examples ?? [],
+      correctIndex: item.correctAnswer != null ? item.correctAnswer - 1 : -1,
+      explanation: item.explanation ?? '',
+      difficulty: item.difficulty ?? 3,
+      topic: item.conceptName ?? '기본 카테고리',
+      subjectId: 'server',
+      subjectName: '오답 노트',
+      wrongCount: item.wrongCount ?? 1,
+      lastAttemptAt: item.lastAttemptAt ?? new Date().toISOString(),
+      isMastered: false,
+    }));
+  },
 };
 

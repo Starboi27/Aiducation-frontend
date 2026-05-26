@@ -151,11 +151,12 @@ async function mockGetConcepts(subjectId) {
 const realGetSubjects    = ()                       => apiClient.get('/api/v1/subjects');
 const realCreateSubject  = (subjectName)            => apiClient.post('/api/v1/subjects', { subjectName });
 const realUpdateSubject  = (subjectId, newName)     => apiClient.patch(`/api/v1/subjects/${subjectId}`, { newName });
-const realDeleteSubject  = (subjectId)              => apiClient.delete(`/api/v1/subjects/${subjectId}`);
+const realDeleteSubject  = (subjectId)              => apiClient.delete(`/api/v1/subjects/${subjectId}`, { silent401: true });
 
 const realGetFiles       = (subjectId)              => apiClient.get(`/api/v1/subjects/${subjectId}/files`);
 const realDeleteFile     = (fileId)                 => apiClient.delete(`/api/v1/files/${fileId}`);
 const realGetConcepts    = (subjectId)              => apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
+const realMergeConcepts  = (sourceId, targetId)     => apiClient.post('/api/v1/concepts/merge', { sourceConceptId: sourceId, targetConceptId: targetId });
 
 async function realUploadFile(subjectId, file) {
   const formData = new FormData();
@@ -207,6 +208,14 @@ export const subjectService = {
   /** 과목별 핵심 개념 목록 조회 → Concept[] */
   getConcepts(subjectId) {
     return isMockEnabled() ? mockGetConcepts(subjectId) : realGetConcepts(subjectId);
-  }
+  },
+
+  /** 개념 병합: source → target 흡수 → MergeResult */
+  mergeConcepts(sourceConceptId, targetConceptId) {
+    if (isMockEnabled()) {
+      return Promise.resolve({ survivedConceptId: targetConceptId, survivedConceptName: '병합됨', mergedQuizCount: 10, resultCode: 0 });
+    }
+    return realMergeConcepts(sourceConceptId, targetConceptId);
+  },
 };
 

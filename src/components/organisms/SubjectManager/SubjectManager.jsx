@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Brain, Sparkles, Check, X, Plus, FileText, BookOpen, PenLine } from 'lucide-react';
 import { Button, Badge } from '../../atoms';
 import SubjectCard from '../SubjectCard/SubjectCard';
 import DifficultyModal from '../../molecules/DifficultyModal/DifficultyModal';
+import { useApp } from '../../../context/AppContext';
+import { subjectService } from '../../../services/subjectService';
 import './SubjectManager.css';
 
 /**
@@ -18,17 +20,18 @@ import './SubjectManager.css';
  *   subjects       - 전체 과목 배열
  *   onAddSubject   - (subjectObj) => void
  *   onDeleteSubject- (id) => void
- *   onAddTopic     - (subjectId, topicObj) => void
  */
 const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
   onAddTopic,
   onDeleteTopic,
+  onMergeTopic,
   onRenameSubject,
   showManualForm: showManualFormProp,
   onManualFormClose,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { topicQuestions } = useApp();
 
   // 수동 추가 폼: 외부 prop 또는 내부 state로 제어
   const [showManualFormLocal, setShowManualFormLocal] = useState(false);
@@ -53,10 +56,22 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
   // 난이도 모달 상태: { subjectId, topicId } | null
   const [modalTarget, setModalTarget] = useState(null);
 
-  // UploadPage → state로 넘어온 AI 분석 결과 (pending subject)
+  // UploadPage → state로 넘어온 AI 분석 결과 (pending subject) → 자동 저장
   const pendingSubject = location.state?.newSubject ?? null;
   const [pendingDismissed, setPendingDismissed] = useState(false);
   const showPending = pendingSubject && !pendingDismissed;
+
+  const savedRef = useRef(false);
+  React.useEffect(() => {
+    if (pendingSubject && !savedRef.current) {
+      savedRef.current = true;
+      const saved = onAddSubject(pendingSubject);
+      navigate(location.pathname, { replace: true, state: {} });
+      setPendingDismissed(true);
+      setExpandedId(saved?.id ?? null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // URL 해시 확인해서 수동 추가 폼 열기 (하위 호환)
   React.useEffect(() => {
@@ -66,12 +81,26 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
   }, [location.hash]);
 
   // ── Handlers ──────────────────────────────────────────────────
-  const handleAddManual = () => {
+  const handleAddManual = async () => {
     if (!manualName.trim()) return;
-    const subj = onAddSubject({ name: manualName.trim(), source: 'manual', topics: [] });
+    const name = manualName.trim();
     setManualName('');
     setShowManualForm(false);
-    setExpandedId(subj?.id ?? null);
+    try {
+      // 서버에 과목 생성 후 서버 ID를 AppContext에 반영
+      const created = await subjectService.createSubject(name);
+      const subj = onAddSubject({
+        id: created.subjectId,
+        name: created.subjectName ?? name,
+        source: 'manual',
+        topics: [],
+      });
+      setExpandedId(subj?.id ?? created.subjectId ?? null);
+    } catch {
+      // API 실패 시 로컬 ID로 폴백
+      const subj = onAddSubject({ name, source: 'manual', topics: [] });
+      setExpandedId(subj?.id ?? null);
+    }
   };
 
   const handleConfirmPending = () => {
@@ -80,11 +109,19 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
   };
 
   const handleStartQuiz = (subjectId, topicId) => {
+    const subj = subjects.find(s => String(s.id) === String(subjectId));
+    const topic = subj?.topics?.find(t => String(t.id) === String(topicId));
+    const isAlreadyGenerated = (topicQuestions[topicId]?.length > 0) || (topic?.quizCount > 0);
+
+    if (topicId !== 'all' && isAlreadyGenerated) {
+      navigate(`/quiz/${subjectId}/${topicId}`);
+      return;
+    }
     setModalTarget({ subjectId, topicId });
   };
 
   const handleStartAllQuiz = (subjectId) => {
-    setModalTarget({ subjectId, topicId: 'all' });
+    navigate(`/quiz/${subjectId}/all`);
   };
 
   const handleDifficultyConfirm = ({ difficulty, count }) => {
@@ -191,6 +228,7 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
               onStartAll={() => handleStartAllQuiz(subj.id)}
               onAddTopic={(topic) => onAddTopic(subj.id, topic)}
               onDeleteTopic={(topicId) => onDeleteTopic(subj.id, topicId)}
+              onMergeTopic={onMergeTopic}
               onRename={(newName) => onRenameSubject?.(subj.id, newName)}
               colorIndex={idx}
             />

@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Target, Star, BrainCircuit, Activity, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Target, BrainCircuit, Activity, Loader2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card, StatCard, ExpCard, NotificationItem } from '../../components/molecules';
 import { Button, Badge } from '../../components/atoms';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { reviewService } from '../../services/reviewService';
+import { calcWeaknessScores, normalizeWeakTypes } from '../../utils/weaknessEMA';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { user, notifications } = useApp();
+  const { user, notifications, wrongAnswers } = useApp();
   const [dashboardData, setDashboardData] = useState(null);
+  const [reviewsTotalCount, setReviewsTotalCount] = useState(0);
   const [todayReviews, setTodayReviews] = useState([]);
+  const [isReviewsExpanded, setIsReviewsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -19,12 +22,26 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       try {
         setIsLoading(true);
-        const [data, reviews] = await Promise.all([
+        const [data, reviewsRes] = await Promise.all([
           userService.getDashboard(),
-          reviewService.getTodayReviews().catch(() => []),
+          reviewService.getTodayReviews().catch(() => null),
         ]);
         setDashboardData(data);
-        setTodayReviews(reviews ?? []);
+        if (reviewsRes) {
+          if (Array.isArray(reviewsRes.reviews)) {
+            setTodayReviews(reviewsRes.reviews);
+            setReviewsTotalCount(reviewsRes.totalCount ?? 0);
+          } else if (Array.isArray(reviewsRes)) {
+            setTodayReviews(reviewsRes);
+            setReviewsTotalCount(reviewsRes.length);
+          } else {
+            setTodayReviews([]);
+            setReviewsTotalCount(0);
+          }
+        } else {
+          setTodayReviews([]);
+          setReviewsTotalCount(0);
+        }
       } catch (error) {
         console.error('대시보드 데이터를 불러오는데 실패했습니다:', error);
       } finally {
@@ -34,6 +51,14 @@ const Dashboard = () => {
 
     fetchDashboard();
   }, []);
+
+  // 취약 유형 차트 — early return 전에 선언 (Hook 규칙)
+  const CHART_HEIGHT_PX = 180;
+  const weakChartData = useMemo(() => {
+    if (wrongAnswers.length > 0) return calcWeaknessScores(wrongAnswers);
+    if (dashboardData?.weakTypes?.length > 0) return normalizeWeakTypes(dashboardData.weakTypes);
+    return [];
+  }, [wrongAnswers, dashboardData]);
 
   if (isLoading) {
     return (
@@ -45,11 +70,16 @@ const Dashboard = () => {
   }
 
   // API 데이터 매핑 (없을 경우 폴백)
+  const toPercent = (val) => {
+    if (val === undefined || val === null) return 0;
+    return val <= 1 ? Math.round(val * 100) : Math.round(val);
+  };
+
   const stats = {
-    weeklyRate: dashboardData?.weeklyStats?.thisWeekRate ?? 0,
-    changeRate: dashboardData?.weeklyStats?.changeRate ?? 0,
-    solvedCount: dashboardData?.solvedCount ?? 0,
-    correctRate: dashboardData?.correctRate ?? user.accuracy ?? 0,
+    weeklyRate: toPercent(dashboardData?.weeklyStats?.thisWeekRate ?? (user.totalSolved ? user.accuracy : 0)),
+    changeRate: toPercent(dashboardData?.weeklyStats?.changeRate ?? 0),
+    solvedCount: dashboardData?.solvedCount ?? user.totalSolved ?? 0,
+    correctRate: toPercent(dashboardData?.correctRate ?? user.accuracy ?? 0),
     growth: dashboardData?.growthIndicator ?? {
       level: user.level,
       exp: user.exp,
@@ -73,12 +103,12 @@ const Dashboard = () => {
       <section className="dashboard__stats-grid">
         <StatCard
           icon={Target}
-          label="이번 주 정답률"
+          label="이번주 정답률"
           value={`${stats.weeklyRate}%`}
           delta={`${Math.abs(stats.changeRate)}%`}
           deltaType={stats.changeRate >= 0 ? 'up' : 'down'}
           color="success"
-          description="지난주 대비 정답률 변화"
+          description="이번주 정답률 통계"
         />
         <StatCard
           icon={BrainCircuit}
@@ -120,21 +150,27 @@ const Dashboard = () => {
             headerAction={<Button variant="ghost" size="sm" onClick={() => navigate('/report')}>상세 리포트</Button>}
           >
             <div className="dashboard__chart-mock">
-              {dashboardData?.weakTypes?.length > 0 ? (
-                dashboardData.weakTypes.map((type, idx) => (
-                  <div 
-                    key={type.subjectName} 
-                    className="chart-bar" 
-                    style={{ 
-                      '--end-height': `${type.incorrectRate}%`, 
-                      '--c': `var(--color-${['danger', 'warning', 'primary', 'info', 'success'][idx % 5]})`, 
-                      '--delay': `${idx * 150}ms` 
-                    }} 
-                    title={type.subjectName}
-                  >
-                    <span className="chart-bar__tooltip">{type.subjectName}: {type.incorrectRate}%</span>
-                  </div>
-                ))
+              {weakChartData.length > 0 ? (
+                weakChartData.map((item, idx) => {
+                  const barPx = Math.max(16, ((item.relativeRate || 0) / 100) * CHART_HEIGHT_PX);
+                  const colors = ['danger', 'warning', 'primary', 'info', 'success'];
+                  return (
+                    <div
+                      key={item.topic}
+                      className="chart-bar"
+                      style={{
+                        height: `${barPx}px`,
+                        '--c': `var(--color-${colors[idx % colors.length]})`,
+                        '--delay': `${idx * 150}ms`,
+                      }}
+                    >
+                      <span className="chart-bar__tooltip">
+                        {item.topic}<br />
+                        총 {item.totalWrong}회 오답 · 위험도 {item.relativeRate}%
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
                 <p className="no-data">아직 분석할 데이터가 부족합니다.</p>
               )}
@@ -149,15 +185,30 @@ const Dashboard = () => {
               headerAction={<Badge variant="warning">{todayReviews.length}</Badge>}
             >
               <div className="dashboard__reviews">
-                {todayReviews.map((r) => (
-                  <div key={r.scheduleId} className="dashboard__review-item" onClick={() => navigate('/review')} style={{ cursor: 'pointer' }}>
-                    <div className="dashboard__review-info">
-                      <p className="dashboard__review-concept">{r.conceptName}</p>
-                      <p className="dashboard__review-subject">{r.subjectName} · {r.quizCount}문제</p>
+                {(isReviewsExpanded ? todayReviews : todayReviews.slice(0, 3)).map((r) => {
+                  const concept = r.conceptName || (r.question && r.question.length > 30 ? r.question.substring(0, 30) + '...' : r.question) || '오답 복습';
+                  const subject = r.subjectName || '오답 복습';
+                  const count = r.quizCount ?? 1;
+                  return (
+                    <div key={r.scheduleId} className="dashboard__review-item" onClick={() => navigate('/review')} style={{ cursor: 'pointer' }}>
+                      <div className="dashboard__review-info">
+                        <p className="dashboard__review-concept">{concept}</p>
+                        <p className="dashboard__review-subject">
+                          {subject} · <Badge variant="default" size="sm">{count}문제</Badge>
+                        </p>
+                      </div>
+                      <Badge variant="primary">복습</Badge>
                     </div>
-                    <Badge variant="primary">복습</Badge>
-                  </div>
-                ))}
+                  );
+                })}
+                {todayReviews.length > 3 && (
+                  <button 
+                    className="dashboard__reviews-toggle" 
+                    onClick={() => setIsReviewsExpanded(!isReviewsExpanded)}
+                  >
+                    {isReviewsExpanded ? '접기 ▲' : `더 보기 (+${todayReviews.length - 3}개) ▼`}
+                  </button>
+                )}
               </div>
             </Card>
           )}

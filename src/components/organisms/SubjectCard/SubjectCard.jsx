@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ChevronRight, Trash2, Brain, Plus, Layers, X, Check, Edit2
+  ChevronRight, Trash2, Brain, Layers, Edit2, Plus, Check, X
 } from 'lucide-react';
 import { Badge } from '../../atoms';
 import { TopicRow } from '../../molecules';
@@ -26,27 +26,68 @@ const SubjectCard = ({
   onStartQuiz,
   onStartAll,
   onAddTopic,
+  onMergeTopic,
   onRename,
   colorIndex = 0,
 }) => {
   const [showAddTopic, setShowAddTopic] = useState(false);
   const [topicName, setTopicName] = useState('');
-  
+
   // 이름 변경 관련 상태
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(subject.name);
+
+  // 드래그 앤 드롭 상태
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+  const [merging, setMerging] = useState(false);
 
   const accentColor = TOPIC_COLORS[colorIndex % TOPIC_COLORS.length];
 
   const handleAddTopic = () => {
     if (!topicName.trim()) return;
-    onAddTopic({
+    onAddTopic?.({
       name: topicName.trim(),
-      quizCount: Math.floor(Math.random() * 10) + 5,
+      quizCount: 0,
       color: accentColor,
     });
     setTopicName('');
     setShowAddTopic(false);
+  };
+
+  // 서버 ID(정수)인 경우에만 드래그 허용
+  const isServerTopic = (id) => !isNaN(Number(id));
+
+  const handleDragStart = (e, topicId) => {
+    if (!isServerTopic(topicId)) { e.preventDefault(); return; }
+    setDraggedId(topicId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, topicId) => {
+    if (!draggedId || topicId === draggedId || !isServerTopic(topicId)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverId(topicId);
+  };
+
+  const handleDrop = async (e, targetId) => {
+    e.preventDefault();
+    const sourceId = draggedId;
+    setDraggedId(null);
+    setDragOverId(null);
+    if (!sourceId || sourceId === targetId || !isServerTopic(sourceId) || !isServerTopic(targetId)) return;
+    setMerging(true);
+    try {
+      await onMergeTopic?.(subject.id, Number(sourceId), Number(targetId));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
   };
 
   return (
@@ -110,9 +151,12 @@ const SubjectCard = ({
               >
                 {subject.source === 'auto' ? '🤖 AI 자동 분류' : '✏️ 수동 생성'}
               </Badge>
-              <span className="subject-card__topic-count">
+              <Badge variant="default" size="sm">
                 {subject.topics.length}개 주제
-              </span>
+              </Badge>
+              <Badge variant="default" size="sm">
+                {subject.topics.reduce((acc, t) => acc + (t.quizCount || 0), 0)}문제
+              </Badge>
             </div>
           </div>
         </div>
@@ -146,17 +190,37 @@ const SubjectCard = ({
         <div className="subject-card__body animate-fade-in">
           {subject.topics.length === 0 ? (
             <p className="subject-card__no-topics">
-              아직 주제가 없습니다. 주제를 추가해보세요.
+              아직 주제가 없습니다. 주제를 추가하거나 파일을 업로드해보세요.
             </p>
           ) : (
             <div className="subject-card__topics">
-              {subject.topics.map((topic) => (
-                <TopicRow
-                  key={topic.id}
-                  topic={topic}
-                  onStart={() => onStartQuiz(subject.id, topic.id)}
-                />
-              ))}
+              {merging && <p className="subject-card__merge-hint">병합 중…</p>}
+              {subject.topics.map((topic) => {
+                const canDrag = isServerTopic(topic.id);
+                const isOver = dragOverId === topic.id && draggedId !== topic.id;
+                return (
+                  <div
+                    key={topic.id}
+                    draggable={canDrag}
+                    onDragStart={(e) => handleDragStart(e, topic.id)}
+                    onDragOver={(e) => handleDragOver(e, topic.id)}
+                    onDrop={(e) => handleDrop(e, topic.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragLeave={() => setDragOverId(null)}
+                    className={[
+                      'topic-drag-wrapper',
+                      isOver ? 'topic-drag-wrapper--over' : '',
+                      draggedId === topic.id ? 'topic-drag-wrapper--dragging' : '',
+                    ].join(' ')}
+                    title={canDrag ? '드래그하여 다른 주제와 퀴즈를 병합하세요' : ''}
+                  >
+                    <TopicRow
+                      topic={topic}
+                      onStart={() => onStartQuiz(subject.id, topic.id)}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
 

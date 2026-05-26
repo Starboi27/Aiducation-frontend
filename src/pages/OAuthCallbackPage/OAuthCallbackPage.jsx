@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService, tokenStorage } from '../../services/authService';
+import { authService, tokenStorage, AUTH_CONFIG } from '../../services/authService';
 import { useApp } from '../../context/AppContext';
 
 const OAuthCallbackPage = () => {
@@ -19,11 +19,18 @@ const OAuthCallbackPage = () => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('accessToken') ?? params.get('token');
     const refreshToken = params.get('refreshToken');
+    const code = params.get('code');
     const errorParam = params.get('error');
 
     if (errorParam) {
       setError(`소셜 로그인 실패: ${errorParam}`);
       setTimeout(() => navigate('/login'), 3000);
+      return;
+    }
+
+    // 카카오: 인가 코드(code)를 받은 경우 → 백엔드로 포워딩해서 JWT 교환
+    if (code && !token) {
+      window.location.href = `${AUTH_CONFIG.baseUrl}/oauth/kakao/callback?code=${code}`;
       return;
     }
 

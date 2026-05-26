@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getRank } from "../components/molecules/ExpCard/ExpCard";
 import { authService } from "../services/authService";
+import { aiService } from "../services/aiService";
 
 const AppContext = createContext();
 
@@ -67,6 +68,7 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user_info");
+      localStorage.removeItem("subjects");
       setSubjects([]);
       setUser(null);
     };
@@ -94,6 +96,20 @@ export const AppProvider = ({ children }) => {
   ]);
 
   const [wrongAnswers, setWrongAnswers] = useState([]);
+  const [isWrongAnswersLoading, setIsWrongAnswersLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setIsWrongAnswersLoading(true);
+      aiService.getIncorrects()
+        .then((list) => setWrongAnswers(list))
+        .catch((err) => console.error("오답 노트를 불러오는 데 실패했습니다:", err))
+        .finally(() => setIsWrongAnswersLoading(false));
+    } else {
+      setWrongAnswers([]);
+      setIsWrongAnswersLoading(false);
+    }
+  }, [user]);
 
   // ── Subjects (과목) 상태 ──────────────────────────────────────
   // subject: { id, name, source: 'manual'|'auto', createdAt, topics: [{id, name, quizCount, color}] }
@@ -149,18 +165,18 @@ export const AppProvider = ({ children }) => {
 
   const updateSubject = (id, updates) => {
     setSubjects((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      prev.map((s) => (String(s.id) === String(id) ? { ...s, ...updates } : s)),
     );
   };
 
   const deleteSubject = (id) => {
-    setSubjects((prev) => prev.filter((s) => s.id !== id));
+    setSubjects((prev) => prev.filter((s) => String(s.id) !== String(id)));
   };
 
   const addTopicToSubject = (subjectId, topic) => {
     setSubjects((prev) =>
       prev.map((s) =>
-        s.id === subjectId
+        String(s.id) === String(subjectId)
           ? {
               ...s,
               topics: [
@@ -176,21 +192,49 @@ export const AppProvider = ({ children }) => {
     );
   };
 
+  const mergeTopicsInSubject = (subjectId, sourceTopicId, targetTopicId, newQuizCount) => {
+    setSubjects((prev) =>
+      prev.map((s) => {
+        if (String(s.id) !== String(subjectId)) return s;
+        return {
+          ...s,
+          topics: s.topics
+            .filter((t) => String(t.id) !== String(sourceTopicId))
+            .map((t) =>
+              String(t.id) === String(targetTopicId)
+                ? { ...t, quizCount: newQuizCount }
+                : t
+            ),
+        };
+      })
+    );
+  };
+
   const deleteTopicFromSubject = (subjectId, topicId) => {
     setSubjects((prev) =>
       prev.map((s) =>
-        s.id === subjectId
-          ? { ...s, topics: s.topics.filter((t) => t.id !== topicId) }
+        String(s.id) === String(subjectId)
+          ? { ...s, topics: s.topics.filter((t) => String(t.id) !== String(topicId)) }
           : s,
       ),
     );
   };
 
-  const getSubjectById = (id) => subjects.find((s) => s.id === id);
+  const getSubjectById = (id) => subjects.find((s) => String(s.id) === String(id));
 
   // useCallback으로 참조 안정화 — 의존하는 컴포넌트(QuizPage)의 불필요한 이펙트 재실행 방지
   const setTopicQuestions = useCallback((topicId, questions) => {
     _setTopicQuestions((prev) => ({ ...prev, [topicId]: questions }));
+    setSubjects((prevSubjects) =>
+      prevSubjects.map((s) => ({
+        ...s,
+        topics: s.topics.map((t) =>
+          String(t.id) === String(topicId)
+            ? { ...t, quizCount: questions.length }
+            : t
+        ),
+      }))
+    );
   }, []);
 
   // ── EXP Actions ──────────────────────────────────────────────
@@ -389,6 +433,7 @@ export const AppProvider = ({ children }) => {
         isInitializing, // 로딩 상태 외부로 노출
         notifications,
         wrongAnswers,
+        isWrongAnswersLoading,
         subjects,
         topicQuestions,
         dailyGoal,
@@ -404,6 +449,7 @@ export const AppProvider = ({ children }) => {
         deleteSubject,
         addTopicToSubject,
         deleteTopicFromSubject,
+        mergeTopicsInSubject,
         getSubjectById,
         setTopicQuestions,
         masterWrongAnswer,

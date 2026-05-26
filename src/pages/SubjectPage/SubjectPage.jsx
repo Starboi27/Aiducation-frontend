@@ -4,6 +4,7 @@ import { FolderOpen, Plus, FileText } from 'lucide-react';
 import { Button } from '../../components/atoms';
 import { SubjectManager } from '../../components/organisms';
 import { useApp } from '../../context/AppContext';
+import { subjectService } from '../../services/subjectService';
 import './SubjectPage.css';
 
 /**
@@ -13,8 +14,16 @@ import './SubjectPage.css';
  */
 const SubjectPage = () => {
   const navigate = useNavigate();
-  const { subjects, addSubject, deleteSubject, addTopicToSubject, deleteTopicFromSubject, updateSubject } = useApp();
+  const { subjects, addSubject, deleteSubject, addTopicToSubject, deleteTopicFromSubject, mergeTopicsInSubject, updateSubject } = useApp();
   const [showManualForm, setShowManualForm] = useState(false);
+
+  const handleDeleteSubject = (id) => {
+    deleteSubject(id);
+    // 로컬 생성 ID(subj_xxx)는 서버에 없으므로 숫자 ID일 때만 API 호출
+    if (!isNaN(Number(id))) {
+      subjectService.deleteSubject(id).catch(() => {});
+    }
+  };
 
   return (
     <div className="subject-page animate-fade-in">
@@ -43,9 +52,13 @@ const SubjectPage = () => {
       <SubjectManager
         subjects={subjects}
         onAddSubject={addSubject}
-        onDeleteSubject={deleteSubject}
+        onDeleteSubject={handleDeleteSubject}
         onAddTopic={addTopicToSubject}
         onDeleteTopic={deleteTopicFromSubject}
+        onMergeTopic={async (subjectId, sourceId, targetId) => {
+          const result = await subjectService.mergeConcepts(sourceId, targetId);
+          mergeTopicsInSubject(subjectId, sourceId, targetId, result.mergedQuizCount ?? 0);
+        }}
         onRenameSubject={(id, newName) => updateSubject(id, { name: newName })}
         showManualForm={showManualForm}
         onManualFormClose={() => setShowManualForm(false)}

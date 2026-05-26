@@ -28,43 +28,34 @@
 }
 .chart-bar {
   width: 36px;
+  /* height는 inline style에서 px로 직접 지정 */
   background: linear-gradient(to top, color-mix(in srgb, var(--c) 80%, transparent), transparent);
   border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
   border-top: 3px solid var(--c);
-  opacity: 0.85;
   cursor: pointer;
   position: relative;
-  
-  /* 생동감을 위한 애니메이션 설정 */
-  height: 0%;
-  animation: growBar 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  opacity: 0;
+  animation: fadeBar 0.7s ease forwards;
   animation-delay: var(--delay, 0ms);
-  transform-origin: bottom;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--c) 20%, transparent);
   transition: opacity var(--transition-fast), filter var(--transition-fast);
 }
 
-@keyframes growBar {
-  0% {
-    height: 0%;
-    opacity: 0;
-  }
-  100% {
-    height: var(--end-height);
-    opacity: 0.85;
-  }
+@keyframes fadeBar {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 0.85; transform: translateY(0); }
 }
 
-.chart-bar:hover { 
-  opacity: 1; 
-  filter: brightness(1.2); 
+.chart-bar:hover {
+  opacity: 1;
+  filter: brightness(1.2);
 }
 
 .chart-bar__tooltip {
   position: absolute;
   top: -28px;
   left: 50%;
-  transform: translateX(-50%) translateY(10px);
+  translate: -50% 10px;
   background: var(--bg-tooltip, #333);
   color: #fff;
   padding: 4px 8px;
@@ -73,12 +64,13 @@
   font-weight: 800;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  white-space: nowrap;
+  transition: opacity 0.3s, translate 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .chart-bar:hover .chart-bar__tooltip {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  translate: -50% 0;
 }
 
 .dashboard__notifs { display: flex; flex-direction: column; gap: var(--spacing-sm); }
@@ -101,3 +93,22 @@
 .dashboard__review-info { display: flex; flex-direction: column; gap: 2px; }
 .dashboard__review-concept { font-size: var(--font-size-sm); font-weight: 600; color: var(--text-primary); margin: 0; }
 .dashboard__review-subject { font-size: var(--font-size-xs); color: var(--text-secondary); margin: 0; }
+
+.dashboard__reviews-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--spacing-sm) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+  transition: opacity var(--transition-fast);
+}
+.dashboard__reviews-toggle:hover {
+  opacity: 0.8;
+}

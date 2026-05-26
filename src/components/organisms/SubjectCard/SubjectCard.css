@@ -264,3 +264,31 @@
   background: rgba(214, 48, 49, 0.1);
   color: var(--color-danger);
 }
+
+/* ── 드래그 앤 드롭 병합 ───────────────────────────────────────── */
+.topic-drag-wrapper {
+  border-radius: var(--border-radius-sm);
+  border: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  cursor: grab;
+}
+.topic-drag-wrapper--dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+  cursor: grabbing;
+}
+.topic-drag-wrapper--over {
+  border-color: var(--color-primary);
+  background: rgba(108, 92, 231, 0.08);
+}
+.subject-card__merge-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--spacing-xs) 0;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
