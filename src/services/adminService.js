@@ -37,11 +37,11 @@ const isMock = () => ADMIN_CONFIG.useMock;
 // MOCK DATA
 // ─────────────────────────────────────────────────────────────────────────────
 let MOCK_USERS = [
-  { ourId: 1, userId: 'testuser',  name: '이창현', email: 'test@test.com',    level: 12, totalExp: 12450, status: 'active', role: 'ADMIN',  joinDate: '2024-01-15T10:00:00Z', mailAlram: true  },
-  { ourId: 2, userId: 'kimminsu',  name: '김민수', email: 'kim@test.com',     level: 10, totalExp: 9820,  status: 'active', role: 'USER',   joinDate: '2024-02-01T09:00:00Z', mailAlram: false },
-  { ourId: 3, userId: 'choiyuri',  name: '최유리', email: 'choi@test.com',    level: 9,  totalExp: 8640,  status: 'active', role: 'USER',   joinDate: '2024-02-15T11:00:00Z', mailAlram: true  },
-  { ourId: 4, userId: 'jeonghein', name: '정해인', email: 'jeong@test.com',   level: 8,  totalExp: 7210,  status: 'suspended', role: 'USER', joinDate: '2024-03-01T08:00:00Z', mailAlram: false },
-  { ourId: 5, userId: 'parkseojun',name: '박서준', email: 'park@test.com',    level: 7,  totalExp: 6050,  status: 'active', role: 'USER',   joinDate: '2024-03-10T14:00:00Z', mailAlram: true  },
+  { ourId: 1, userId: 'testuser',  name: '이창현', email: 'test@test.com',    level: 12, totalExp: 12450, status: 'active',    role: 'ADMIN', joinDate: '2024-01-15T10:00:00Z', mailAlram: true,  totalSolvedCount: 1240, correctRate: 82, registeredSubjectCount: 5, lastActivityAt: '2026-05-26T14:30:00Z' },
+  { ourId: 2, userId: 'kimminsu',  name: '김민수', email: 'kim@test.com',     level: 10, totalExp: 9820,  status: 'active',    role: 'USER',  joinDate: '2024-02-01T09:00:00Z', mailAlram: false, totalSolvedCount: 870,  correctRate: 74, registeredSubjectCount: 3, lastActivityAt: '2026-05-25T09:10:00Z' },
+  { ourId: 3, userId: 'choiyuri',  name: '최유리', email: 'choi@test.com',    level: 9,  totalExp: 8640,  status: 'active',    role: 'USER',  joinDate: '2024-02-15T11:00:00Z', mailAlram: true,  totalSolvedCount: 650,  correctRate: 69, registeredSubjectCount: 2, lastActivityAt: '2026-05-24T18:00:00Z' },
+  { ourId: 4, userId: 'jeonghein', name: '정해인', email: 'jeong@test.com',   level: 8,  totalExp: 7210,  status: 'suspended', role: 'USER',  joinDate: '2024-03-01T08:00:00Z', mailAlram: false, totalSolvedCount: 430,  correctRate: 61, registeredSubjectCount: 2, lastActivityAt: '2026-04-10T11:00:00Z' },
+  { ourId: 5, userId: 'parkseojun',name: '박서준', email: 'park@test.com',    level: 7,  totalExp: 6050,  status: 'active',    role: 'USER',  joinDate: '2024-03-10T14:00:00Z', mailAlram: true,  totalSolvedCount: 310,  correctRate: 55, registeredSubjectCount: 1, lastActivityAt: '2026-05-27T08:45:00Z' },
 ];
 
 const MOCK_LEVEL_DISTRIBUTION = {
@@ -68,11 +68,11 @@ const MOCK_DIFFICULTY_STATUS = {
 };
 
 let MOCK_CONTENTS = [
-  { id: 'file_001', type: 'FILE',    name: '운영체제_기말고사_정리.pdf', ownerUserId: 'testuser',  createdAt: '2024-03-20T10:00:00Z' },
-  { id: 'file_002', type: 'FILE',    name: '데이터베이스_기초.docx',     ownerUserId: 'kimminsu',  createdAt: '2024-03-21T14:30:00Z' },
-  { id: 'file_003', type: 'FILE',    name: '알고리즘_문제집.pdf',        ownerUserId: 'choiyuri',  createdAt: '2024-03-22T09:15:00Z' },
-  { id: 'con_001',  type: 'CONCEPT', name: '프로세스 관리',              ownerUserId: 'testuser',  createdAt: '2024-03-20T11:00:00Z' },
-  { id: 'con_002',  type: 'CONCEPT', name: 'SQL 기초',                   ownerUserId: 'kimminsu',  createdAt: '2024-03-21T15:00:00Z' },
+  { id: 1, type: 'FILE',    name: '운영체제_기말고사_정리.pdf', ownerUserId: 'testuser',  createdAt: '2024-03-20T10:00:00Z' },
+  { id: 2, type: 'FILE',    name: '데이터베이스_기초.docx',     ownerUserId: 'kimminsu',  createdAt: '2024-03-21T14:30:00Z' },
+  { id: 3, type: 'FILE',    name: '알고리즘_문제집.pdf',        ownerUserId: 'choiyuri',  createdAt: '2024-03-22T09:15:00Z' },
+  { id: 4, type: 'CONCEPT', name: '프로세스 관리',              ownerUserId: 'testuser',  createdAt: '2024-03-20T11:00:00Z' },
+  { id: 5, type: 'CONCEPT', name: 'SQL 기초',                   ownerUserId: 'kimminsu',  createdAt: '2024-03-21T15:00:00Z' },
 ];
 
 let MOCK_PENDING_CONCEPTS = [
@@ -147,11 +147,15 @@ const mockDeleteUser = async (userId, reason) => {
   return { reason };
 };
 
-const mockUpdateUserExp = async (ourId, exp) => {
+const mockUpdateUserExp = async (ourId, expDelta, reason) => {
   await sleep(ADMIN_CONFIG.mockDelayMs);
   const user = MOCK_USERS.find((u) => u.ourId === Number(ourId));
-  if (user) user.totalExp = exp;
-  return { resultCode: 200 };
+  if (!user) throw new Error('사용자를 찾을 수 없습니다.');
+  const newTotalExp = Math.max(0, (user.totalExp ?? 0) + expDelta);
+  const newLevel = Math.min(10, Math.max(1, Math.floor(newTotalExp / 500) + 1));
+  user.totalExp = newTotalExp;
+  user.level = newLevel;
+  return { resultCode: 200, newTotalExp, newLevel };
 };
 
 const mockGetLevelDistribution = async () => {
@@ -209,10 +213,10 @@ const mockGetTasks = async () => {
   return { ...MOCK_TASKS };
 };
 
-const mockDeleteFile = async (fileId) => {
+const mockDeleteFile = async (fileId, reason) => {
   await sleep(ADMIN_CONFIG.mockDelayMs);
-  MOCK_CONTENTS = MOCK_CONTENTS.filter((c) => c.id !== fileId);
-  return { resultCode: 200 };
+  MOCK_CONTENTS = MOCK_CONTENTS.filter((c) => c.id !== Number(fileId));
+  return { resultCode: 200, reason };
 };
 
 const mockGetLevelSettings = async () => {
@@ -249,6 +253,19 @@ const mockGetAccuracy = async () => {
   return { ...MOCK_ACCURACY };
 };
 
+let MOCK_NOTICE_SETTINGS = { alarmInterval: 24, isAlarmEnabled: true };
+
+const mockGetNoticeSettings = async () => {
+  await sleep(ADMIN_CONFIG.mockDelayMs);
+  return { ...MOCK_NOTICE_SETTINGS };
+};
+
+const mockUpdateNoticeSettings = async (settings) => {
+  await sleep(ADMIN_CONFIG.mockDelayMs);
+  MOCK_NOTICE_SETTINGS = { ...MOCK_NOTICE_SETTINGS, ...settings };
+  return { resultCode: 200 };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REAL API IMPLEMENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,7 +274,7 @@ const realGetUser          = (id)                        => apiClient.get(`/api/
 const realUpdateUserStatus = (userId, status, reason)    => apiClient.patch(`/api/v1/admin/users/${userId}/status`, { status, reason });
 const realDeleteUser       = (userId, reason)            => apiClient.delete(`/api/v1/admin/users/${userId}`, { body: { reason } });
 const realGetLevelDist     = ()                          => apiClient.get('/api/v1/admin/users/level-distribution');
-const realUpdateUserExp    = (ourId, exp)                 => apiClient.patch(`/api/v1/admin/users/${ourId}/exp`, { exp });
+const realUpdateUserExp    = (ourId, exp, reason)         => apiClient.patch(`/api/v1/admin/users/${ourId}/exp`, { exp, reason });
 
 const realGetQuizzes    = ({ userId, difficulty, page } = {}) => {
   const params = new URLSearchParams();
@@ -283,13 +300,16 @@ const realUpdateConceptStatus = (conceptId, status) => apiClient.patch(`/api/v1/
 const realDeleteConcept       = (conceptId)         => apiClient.delete(`/api/v1/admin/concepts/${conceptId}`);
 
 const realGetTasks   = ()         => apiClient.get('/api/v1/admin/tasks');
-const realDeleteFile = (fileId)   => apiClient.delete(`/api/v1/admin/files/${fileId}`);
+const realDeleteFile = (fileId, reason) => apiClient.delete(`/api/v1/admin/files/${fileId}`, { body: { reason } });
 
 const realUpdateLevelExp      = (level, requiredExp)    => apiClient.put(`/api/v1/admin/levels/${level}`, { requiredExp });
 const realUpdateDifficultyExp = (difficulty, expReward) => apiClient.put(`/api/v1/admin/difficulties/${difficulty}`, { expReward });
 
 const realGetReport   = () => apiClient.get('/api/v1/admin/stats/report');
 const realGetAccuracy = () => apiClient.get('/api/v1/admin/stats/accuracy');
+
+const realGetNoticeSettings    = ()         => apiClient.get('/api/v1/admin/settings/notice');
+const realUpdateNoticeSettings = (settings) => apiClient.patch('/api/v1/admin/settings/notice', settings);
 
 // getLevelSettings / getDifficultySettings는 별도 GET이 없으므로 mock만 제공
 const realGetLevelSettings      = mockGetLevelSettings;
@@ -322,11 +342,12 @@ export const adminService = {
   getLevelDistribution()                  { return isMock() ? mockGetLevelDistribution() : realGetLevelDist(); },
 
   /**
-   * 사용자 경험치 직접 수정 → { resultCode }
+   * 사용자 경험치 조정 → { resultCode, newTotalExp, newLevel }
    * @param {number} ourId
-   * @param {number} exp - 0 이상 정수
+   * @param {number} exp - 조정값 (양수: 지급, 음수: 차감)
+   * @param {string} reason - 조정 사유
    */
-  updateUserExp(ourId, exp)               { return isMock() ? mockUpdateUserExp(ourId, exp) : realUpdateUserExp(ourId, exp); },
+  updateUserExp(ourId, exp, reason)       { return isMock() ? mockUpdateUserExp(ourId, exp, reason) : realUpdateUserExp(ourId, exp, reason); },
 
   /**
    * 퀴즈 전체 목록 → { totalCount, quizzes }
@@ -365,7 +386,7 @@ export const adminService = {
   getTasks()                              { return isMock() ? mockGetTasks() : realGetTasks(); },
 
   /** 파일 삭제 (관리자) → { resultCode } */
-  deleteFile(fileId)                      { return isMock() ? mockDeleteFile(fileId) : realDeleteFile(fileId); },
+  deleteFile(fileId, reason)              { return isMock() ? mockDeleteFile(fileId, reason) : realDeleteFile(fileId, reason); },
 
   /** 레벨별 경험치 설정 목록 조회 */
   getLevelSettings()                      { return isMock() ? mockGetLevelSettings() : realGetLevelSettings(); },
@@ -392,4 +413,10 @@ export const adminService = {
 
   /** 퀴즈 정확도 통계 → { totalSubmissions, totalCorrect, accuracyRate } */
   getAccuracy()                           { return isMock() ? mockGetAccuracy() : realGetAccuracy(); },
+
+  /** 글로벌 알림 설정 조회 → { alarmInterval, isAlarmEnabled } */
+  getNoticeSettings()                     { return mockGetNoticeSettings(); },
+
+  /** 글로벌 알림 설정 수정 → { resultCode } */
+  updateNoticeSettings(settings)          { return mockUpdateNoticeSettings(settings); },
 };

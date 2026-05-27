@@ -123,8 +123,8 @@ const realToggleAlarm = (enabled) =>
 const realGetAlarmTime = () =>
   apiClient.get('/api/v1/notifications/alarm-time');
 
-const realUpdateAlarmTime = (alarmTime) =>
-  apiClient.patch('/api/v1/notifications/alarm-time', { studyAlarmTime: alarmTime });
+const realUpdateAlarmTime = (studyAlarmTime) =>
+  apiClient.patch('/api/v1/notifications/alarm-time', { studyAlarmTime });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API

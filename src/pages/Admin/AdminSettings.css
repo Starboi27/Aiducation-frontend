@@ -12,9 +12,22 @@
 }
 
 .settings-section h3 {
-  margin: 0 0 1.5rem 0;
+  margin: 0;
   font-size: 1.1rem;
   color: #333;
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.settings-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .setting-control {
@@ -143,24 +156,84 @@
   color: #95a5a6;
 }
 
+/* ── settings-table (새 디자인) ── */
+.settings-section__sub {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted, #999);
+  margin-left: 0.5rem;
+}
+
 .settings-table {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.setting-field--inline {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.setting-field--inline label {
-  width: 90px;
-  font-weight: 600;
-  color: var(--text-secondary, #555);
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
   font-size: 0.9rem;
+}
+
+.settings-table thead tr {
+  border-bottom: 2px solid #6C5CE720;
+}
+
+.settings-table th {
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #999);
+}
+
+.settings-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+}
+
+.settings-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.settings-table tbody tr:hover {
+  background: #6C5CE708;
+}
+
+.settings-table td {
+  padding: 0.6rem 1rem;
+  vertical-align: middle;
+}
+
+.st-badge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.st-badge--level {
+  background: #6C5CE715;
+  color: #6C5CE7;
+}
+
+.st-badge--diff {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.st-badge--EASY   { background: #eafaf1; color: #27ae60; }
+.st-badge--MEDIUM { background: #fef9e7; color: #f39c12; }
+.st-badge--HARD   { background: #fdedec; color: #e74c3c; }
+
+.st-input {
+  width: 110px !important;
+}
+
+.st-unit {
+  font-size: 0.82rem;
+  color: var(--text-muted, #aaa);
+  font-weight: 500;
 }
 
 .setting-unit {

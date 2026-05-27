@@ -6,6 +6,8 @@
   border-radius: var(--border-radius-full);
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge--sm { padding: 2px 8px; font-size: 10px; }

@@ -28,7 +28,13 @@ const AdminAIMonitor = () => {
         adminService.getTasks(),
         aiService.getSettings(),
       ]);
-      setTasks(taskData?.tasks ?? []);
+      const sorted = (taskData?.tasks ?? []).sort((a, b) => {
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setTasks(sorted);
       setSummary(taskData?.summary ?? { pendingCount: 0, processingCount: 0, failedCount: 0 });
       setSettings(settingData);
     } catch (err) {

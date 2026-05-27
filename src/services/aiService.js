@@ -366,7 +366,7 @@ export const aiService = {
       useMock: AI_CONFIG.useMock,
       baseUrl: AI_CONFIG.baseUrl,
       defaultQuizCount: AI_CONFIG.defaultQuizCount,
-      modelName: AI_CONFIG.useMock ? 'Mock Gemini-2.5-flash-lite' : 'Gemini-2.5-flash-lite',
+      modelName: AI_CONFIG.useMock ? 'Mock GChatGPT 4.1 ' : 'ChatGPT 4.1 ',
     };
   },
 
@@ -525,4 +525,3 @@ export const aiService = {
     }));
   },
 };
-

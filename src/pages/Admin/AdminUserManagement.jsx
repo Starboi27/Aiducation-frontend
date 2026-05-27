@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './AdminUserManagement.css';
+import './admin-common.css';
 import AdminTable from '../../components/organisms/AdminTable/AdminTable';
 import AdminBadge from '../../components/atoms/AdminBadge/AdminBadge';
+import UserDetailPanel from '../../components/organisms/UserDetailPanel/UserDetailPanel';
 import { adminService } from '../../services/adminService';
 import Button from '../../components/atoms/Button/Button';
 import Input from '../../components/atoms/Input/Input';
@@ -12,11 +14,16 @@ const AdminUserManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editExpId, setEditExpId] = useState(null);
-  const [expInput, setExpInput] = useState('');
+  const [expDelta, setExpDelta] = useState('');
+  const [expReason, setExpReason] = useState('');
+  const [expResult, setExpResult] = useState(null);
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  // 회원 상세 패널
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userDetail, setUserDetail] = useState(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  useEffect(() => { loadUsers(); }, []);
 
   useEffect(() => {
     const term = searchTerm.toLowerCase();
@@ -43,49 +50,80 @@ const AdminUserManagement = () => {
     }
   };
 
+  // ── 회원 상세 ──────────────────────────────────────────────
+  const handleRowClick = async (user) => {
+    setSelectedUser(user);
+    setUserDetail(null);
+    setIsDetailLoading(true);
+    try {
+      const res = await adminService.getUser(user.ourId);
+      setUserDetail(res?.user ?? res);
+    } catch (err) {
+      console.error('회원 상세 로드 실패:', err);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  const handleClosePanel = () => {
+    setSelectedUser(null);
+    setUserDetail(null);
+  };
+
+  // ── 상태 변경 (패널 / 테이블 동기화) ─────────────────────
   const handleToggleStatus = async (user) => {
     const nextStatus = user.status === 'active' ? 'suspended' : 'active';
     const reason = nextStatus === 'suspended' ? '관리자 정지' : '정지 해제';
     try {
       await adminService.updateUserStatus(user.ourId, nextStatus, reason);
       setUsers((prev) =>
-        prev.map((u) => (u.ourId === user.ourId ? { ...u, status: nextStatus } : u))
+        prev.map((u) => u.ourId === user.ourId ? { ...u, status: nextStatus } : u)
       );
+      if (userDetail?.ourId === user.ourId) {
+        setUserDetail((prev) => ({ ...prev, status: nextStatus }));
+      }
     } catch (err) {
       alert(`상태 변경 실패: ${err.message}`);
     }
   };
 
+  // ── 강제 탈퇴 ───────────────────────────────────────────
+  const handleDelete = async (user) => {
+    if (!window.confirm(`"${user.name}" 사용자를 강제 탈퇴하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!window.confirm('정말로 강제 탈퇴 처리하시겠습니까?')) return;
+    try {
+      await adminService.deleteUser(user.ourId, '관리자 강제 탈퇴');
+      setUsers((prev) => prev.filter((u) => u.ourId !== user.ourId));
+      if (selectedUser?.ourId === user.ourId) handleClosePanel();
+    } catch (err) {
+      alert(`탈퇴 처리 실패: ${err.message}`);
+    }
+  };
+
+  // ── 경험치 조정 ─────────────────────────────────────────
   const handleEditExpStart = (user) => {
     setEditExpId(user.ourId);
-    setExpInput(String(user.totalExp ?? 0));
+    setExpDelta('');
+    setExpReason('');
+    setExpResult(null);
   };
 
   const handleUpdateExp = async (user) => {
-    const exp = Number(expInput);
-    if (isNaN(exp) || exp < 0) {
-      alert('경험치는 0 이상의 숫자여야 합니다.');
-      return;
-    }
+    const delta = Number(expDelta);
+    if (expDelta === '' || isNaN(delta)) { alert('조정값을 입력해주세요.'); return; }
+    if (!expReason.trim()) { alert('조정 사유를 입력해주세요.'); return; }
     try {
-      await adminService.updateUserExp(user.ourId, exp);
+      const res = await adminService.updateUserExp(user.ourId, delta, expReason.trim());
+      const newTotalExp = res?.newTotalExp ?? Math.max(0, (user.totalExp ?? 0) + delta);
+      const newLevel    = res?.newLevel    ?? user.level;
       setUsers((prev) =>
-        prev.map((u) => (u.ourId === user.ourId ? { ...u, totalExp: exp } : u))
+        prev.map((u) => u.ourId === user.ourId ? { ...u, totalExp: newTotalExp, level: newLevel } : u)
       );
-      setEditExpId(null);
+      setExpResult({ ourId: user.ourId, newTotalExp, newLevel });
+      setExpDelta('');
+      setExpReason('');
     } catch (err) {
-      alert(`경험치 수정 실패: ${err.message}`);
-    }
-  };
-
-  const handleDelete = async (user) => {
-    if (!window.confirm(`"${user.name}" 사용자를 삭제하시겠습니까?`)) return;
-    const reason = '관리자 삭제';
-    try {
-      await adminService.deleteUser(user.ourId, reason);
-      setUsers((prev) => prev.filter((u) => u.ourId !== user.ourId));
-    } catch (err) {
-      alert(`삭제 실패: ${err.message}`);
+      alert(`경험치 조정 실패: ${err.message}`);
     }
   };
 
@@ -99,23 +137,40 @@ const AdminUserManagement = () => {
       header: '경험치',
       render: (user) =>
         editExpId === user.ourId ? (
-          <div className="table-actions">
-            <Input
-              type="number"
-              value={expInput}
-              onChange={(e) => setExpInput(e.target.value)}
-              style={{ width: '80px' }}
-            />
-            <Button variant="outline" size="small" onClick={() => handleUpdateExp(user)}>확인</Button>
-            <Button variant="ghost"   size="small" onClick={() => setEditExpId(null)}>취소</Button>
+          <div className="exp-adjust-form" onClick={(e) => e.stopPropagation()}>
+            <div className="exp-adjust-form__row">
+              <Input
+                type="number"
+                placeholder="조정값 (예: +500, -200)"
+                value={expDelta}
+                onChange={(e) => setExpDelta(e.target.value)}
+                className="exp-adjust-form__delta"
+              />
+              <Input
+                type="text"
+                placeholder="사유 입력"
+                value={expReason}
+                onChange={(e) => setExpReason(e.target.value)}
+                className="exp-adjust-form__reason"
+              />
+            </div>
+            {expResult?.ourId === user.ourId && (
+              <div className="exp-adjust-form__result">
+                ✅ Lv.{expResult.newLevel} · {expResult.newTotalExp.toLocaleString()} XP
+              </div>
+            )}
+            <div className="exp-adjust-form__actions">
+              <Button variant="outline" size="small" onClick={() => handleUpdateExp(user)}>적용</Button>
+              <Button variant="ghost"   size="small" onClick={() => { setEditExpId(null); setExpResult(null); }}>취소</Button>
+            </div>
           </div>
         ) : (
           <span
-            style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
-            onClick={() => handleEditExpStart(user)}
-            title="클릭하여 수정"
+            className="exp-adjust-trigger"
+            onClick={(e) => { e.stopPropagation(); handleEditExpStart(user); }}
+            title="클릭하여 경험치 조정"
           >
-            {user.totalExp?.toLocaleString() ?? '-'}
+            {user.totalExp?.toLocaleString() ?? '-'} XP
           </span>
         ),
     },
@@ -131,21 +186,11 @@ const AdminUserManagement = () => {
     {
       header: '관리',
       render: (user) => (
-        <div className="table-actions">
-          <Button
-            variant="outline"
-            size="small"
-            onClick={() => handleToggleStatus(user)}
-          >
+        <div className="table-actions" onClick={(e) => e.stopPropagation()}>
+          <Button variant="outline" size="small" onClick={() => handleToggleStatus(user)}>
             {user.status === 'active' ? '정지' : '활성화'}
           </Button>
-          <Button
-            variant="danger"
-            size="small"
-            onClick={() => handleDelete(user)}
-          >
-            삭제
-          </Button>
+          <Button variant="danger" size="small" onClick={() => handleDelete(user)}>삭제</Button>
         </div>
       ),
     },
@@ -164,7 +209,24 @@ const AdminUserManagement = () => {
         </div>
       </div>
 
-      <AdminTable columns={columns} data={filteredUsers} isLoading={isLoading} />
+      <AdminTable
+        columns={columns}
+        data={filteredUsers}
+        isLoading={isLoading}
+        onRowClick={handleRowClick}
+        highlightRowId={selectedUser?.ourId}
+        rowIdKey="ourId"
+      />
+
+      {selectedUser && (
+        <UserDetailPanel
+          detail={userDetail}
+          isLoading={isDetailLoading}
+          onClose={handleClosePanel}
+          onToggleStatus={handleToggleStatus}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, ChevronRight, Zap, Timer, AlertTriangle } from 'lucide-react';
+import { ChevronRight, Timer, AlertTriangle } from 'lucide-react';
 import { Button, Badge, ProgressBar } from '../../atoms';
 import { QuizOption } from '../../molecules';
 import { useApp } from '../../../context/AppContext';
@@ -39,13 +39,10 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
   const [answered, setAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerActive, setTimerActive] = useState(true);
-  const [showExplanation, setShowExplanation] = useState(false);
   const { addExp, addWrongAnswer } = useApp();
 
   // 문제별 서버에서 가져온 정답 인덱스 캐시: { [questionId]: 0-based correctIndex }
   const [fetchedAnswers, setFetchedAnswers] = useState({});
-  // 문제별 서버에서 가져온 해설
-  const [fetchedExplanations, setFetchedExplanations] = useState({});
 
   const current = questions[currentIdx];
   const isLast = currentIdx === questions.length - 1;
@@ -56,18 +53,13 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
     ? (fetchedAnswers[current.id] ?? current.correctIndex)
     : null;
 
-  // 현재 문제의 해설
-  const effectiveExplanation = current
-    ? (current.explanation || fetchedExplanations[current.id] || '')
-    : '';
-
-  // 문제가 바뀔 때마다 서버에서 정답·해설 사전 fetch
+  // 문제가 바뀔 때마다 서버에서 정답 사전 fetch
   useEffect(() => {
     if (!current) return;
     const id = current.id;
 
-    // 이미 정답·해설 모두 있으면 스킵
-    if (fetchedAnswers[id] != null && fetchedExplanations[id]) return;
+    // 이미 정답 있으면 스킵
+    if (fetchedAnswers[id] != null) return;
     // 백엔드 정수 ID가 아니면 스킵 (mock 퀴즈의 'q_...' 형식 등)
     if (!id || isNaN(Number(id))) return;
 
@@ -76,10 +68,6 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
         const ans = data?.answer ?? data?.correctAnswer ?? data?.correct_answer;
         if (ans != null) {
           setFetchedAnswers(prev => ({ ...prev, [id]: Number(ans) - 1 }));
-        }
-        const exp = typeof data === 'string' ? data : (data?.explanation ?? '');
-        if (exp) {
-          setFetchedExplanations(prev => ({ ...prev, [id]: exp }));
         }
       })
       .catch(() => {});
@@ -112,17 +100,50 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
     setTimerActive(true);
     setSelected(null);
     setAnswered(false);
-    setShowExplanation(false);
   }, [currentIdx]);
 
+  // 타이머 만료 시에만 호출 — 선택지 클릭은 setSelected만 함
   const handleAnswer = (optionIdx) => {
     if (answered) return;
     setTimerActive(false);
     setSelected(optionIdx);
     setAnswered(true);
 
-    const correct = effectiveCorrectIndex != null && optionIdx === effectiveCorrectIndex;
+    // 시간 초과는 항상 오답
+    addWrongAnswer({
+      ...current,
+      correctIndex: effectiveCorrectIndex,
+      userAnswer: '(시간 초과)',
+    });
+
+    setResults(prev => [...prev, {
+      questionId: current.id,
+      correct: false,
+      expGained: 0,
+      difficulty: current.difficulty,
+      timeUsed: 30,
+      selectedAnswer: 0,
+    }]);
+  };
+
+  const handleNext = () => {
+    if (answered) {
+      // 타이머 만료 후 다음으로
+      if (isLast) {
+        localStorage.removeItem(`quizProgress_${quizId}`);
+        onComplete?.(results);
+      } else {
+        setCurrentIdx(i => i + 1);
+      }
+      return;
+    }
+
+    // 선택지 클릭 후 다음 버튼으로 정답 처리 + 이동
+    const optionIdx = selected;
+    const correct = effectiveCorrectIndex != null && optionIdx !== null && optionIdx === effectiveCorrectIndex;
     const expGained = correct ? calculateExp(current.difficulty, timeLeft) : 0;
+
+    setTimerActive(false);
 
     if (correct) {
       addExp(expGained);
@@ -130,24 +151,24 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
       addWrongAnswer({
         ...current,
         correctIndex: effectiveCorrectIndex,
-        userAnswer: optionIdx !== null ? current.options[optionIdx] : '(시간 초과)',
+        userAnswer: optionIdx !== null ? current.options[optionIdx] : '(미선택)',
       });
     }
 
-    setResults(prev => [...prev, {
+    const newResult = {
       questionId: current.id,
       correct,
       expGained,
       difficulty: current.difficulty,
       timeUsed: 30 - timeLeft,
       selectedAnswer: optionIdx !== null ? optionIdx + 1 : 0,
-    }]);
-  };
+    };
+    const newResults = [...results, newResult];
+    setResults(newResults);
 
-  const handleNext = () => {
     if (isLast) {
       localStorage.removeItem(`quizProgress_${quizId}`);
-      onComplete?.(results);
+      onComplete?.(newResults);
     } else {
       setCurrentIdx(i => i + 1);
     }
@@ -163,7 +184,6 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
   }
 
   const timerVariant = timeLeft > 15 ? 'success' : timeLeft > 8 ? 'warning' : 'danger';
-  const isCorrect = selected === effectiveCorrectIndex;
 
   return (
     <div className="quiz-engine">
@@ -217,62 +237,28 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
             key={i}
             label={OPTION_LABELS[i]}
             text={opt}
-            selected={selected === i && !answered}
+            selected={selected === i}
             correct={answered && effectiveCorrectIndex != null && i === effectiveCorrectIndex}
             wrong={answered && effectiveCorrectIndex != null && selected === i && i !== effectiveCorrectIndex}
             disabled={answered}
-            onClick={() => handleAnswer(i)}
+            onClick={() => !answered && setSelected(i)}
           />
         ))}
       </div>
 
-      {/* Feedback */}
-      {answered && (
-        <div className={`quiz-engine__feedback quiz-engine__feedback--${isCorrect ? 'correct' : 'wrong'}`}>
-          <div className="quiz-engine__feedback-icon">
-            {isCorrect
-              ? <CheckCircle size={24} />
-              : selected === null ? <Timer size={24} /> : <XCircle size={24} />
-            }
-          </div>
-          <div className="quiz-engine__feedback-content">
-            <p className="quiz-engine__feedback-title">
-              {isCorrect ? '정답입니다! 🎉'
-                : selected === null ? '시간 초과!'
-                : effectiveCorrectIndex == null ? '제출 완료 (서버에서 채점)'
-                : '오답입니다'}
-            </p>
-            {/* 오답 or 시간초과 + 정답 인덱스 있을 때만 표시 */}
-            {!isCorrect && effectiveCorrectIndex != null && (
-              <p className="quiz-engine__correct-answer">
-                정답: <strong>{OPTION_LABELS[effectiveCorrectIndex]}. {current.options[effectiveCorrectIndex]}</strong>
-              </p>
-            )}
-            {isCorrect && results[results.length - 1]?.expGained > 0 && (
-              <p className="quiz-engine__feedback-exp">
-                +{results[results.length - 1].expGained} XP 획득!
-              </p>
-            )}
-            {!showExplanation && effectiveExplanation && (
-              <button className="quiz-engine__explain-btn" onClick={() => setShowExplanation(true)}>
-                해설 보기
-              </button>
-            )}
-            {showExplanation && effectiveExplanation && (
-              <p className="quiz-engine__explanation">{effectiveExplanation}</p>
-            )}
-          </div>
-          <Button
-            variant={isCorrect ? 'success' : 'secondary'}
-            size="md"
-            icon={ChevronRight}
-            iconPosition="right"
-            onClick={handleNext}
-          >
-            {isLast ? '결과 보기' : '다음'}
-          </Button>
-        </div>
-      )}
+      {/* 다음 버튼: 선택 전 비활성, 선택 후 활성 */}
+      <div className="quiz-engine__feedback">
+        <Button
+          variant="primary"
+          size="md"
+          icon={ChevronRight}
+          iconPosition="right"
+          disabled={!answered && selected === null}
+          onClick={handleNext}
+        >
+          {isLast ? '결과 보기' : '다음'}
+        </Button>
+      </div>
     </div>
   );
 };

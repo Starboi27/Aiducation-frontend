@@ -275,6 +275,28 @@
   color: var(--text-muted);
 }
 
+.review-accordion__header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-accordion__delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.review-accordion__delete:hover {
+  color: var(--color-danger, #e17055);
+  background: rgba(225, 112, 85, 0.1);
+}
+
 .review-accordion__chevron {
   color: var(--text-muted);
   transition: transform var(--transition-normal);
@@ -546,4 +568,16 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+.review-accordion__delete {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    align-items: center;
+    transition: color var(--transition-fast), background var(--transition-fast);
 }

@@ -60,71 +60,10 @@
   animation: fadeIn 0.35s ease;
 }
 
+
 .quiz-engine__feedback {
   display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  border-radius: var(--border-radius-lg);
-  border: 1px solid;
-  animation: slideIn 0.3s ease;
-}
-.quiz-engine__feedback--correct {
-  background: rgba(0,184,148,0.08);
-  border-color: rgba(0,184,148,0.4);
-}
-.quiz-engine__feedback--wrong {
-  background: rgba(214,48,49,0.08);
-  border-color: rgba(214,48,49,0.4);
-}
-
-.quiz-engine__feedback-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.quiz-engine__feedback--correct .quiz-engine__feedback-icon { color: var(--color-success); }
-.quiz-engine__feedback--wrong .quiz-engine__feedback-icon { color: #ff7675; }
-
-.quiz-engine__feedback-content { flex: 1; min-width: 0; }
-.quiz-engine__feedback-title { font-size: var(--font-size-md); font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-.quiz-engine__feedback-exp {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-gold);
-  animation: bounceIn 0.4s ease;
-}
-
-.quiz-engine__correct-answer {
-  font-size: var(--font-size-sm);
-  color: var(--color-success);
-  margin-top: 6px;
-  padding: 6px 10px;
-  background: rgba(0, 184, 148, 0.1);
-  border-left: 3px solid var(--color-success);
-  border-radius: 4px;
-}
-.quiz-engine__correct-answer strong { font-weight: 700; }
-
-.quiz-engine__explain-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: var(--font-size-sm); color: var(--color-primary-light);
-  font-family: var(--font-family); font-weight: 600;
-  padding: 4px 0; margin-top: 6px;
-  text-decoration: underline;
-  transition: color var(--transition-fast);
-}
-.quiz-engine__explain-btn:hover { color: var(--color-primary); }
-
-.quiz-engine__explanation {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-top: 8px;
-  padding: 10px;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius-sm);
-  border-left: 3px solid var(--color-primary);
-  animation: fadeIn 0.3s ease;
+  justify-content: flex-end;
 }
 
 .quiz-engine__empty {

@@ -37,6 +37,18 @@
   background-color: #f7fafc;
 }
 
+.admin-table__row--clickable {
+  cursor: pointer;
+}
+
+.admin-table__row--active td {
+  background-color: #f0edff;
+}
+
+.admin-table__row--active:hover td {
+  background-color: #e8e4ff;
+}
+
 .admin-table-loading, .admin-table-empty {
   background-color: white;
   padding: 3rem;

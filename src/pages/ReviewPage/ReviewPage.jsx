@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { aiService } from '../../services/aiService';
 import QuizOption from '../../components/molecules/QuizOption/QuizOption';
 import { Button, Badge } from '../../components/atoms';
 import {
   BookX, CheckCircle2, FolderOpen, ChevronLeft, ChevronRight,
-  AlertCircle, Bookmark, RotateCcw, CheckCheck,
+  AlertCircle, Bookmark, RotateCcw, CheckCheck, Trash2,
 } from 'lucide-react';
 import './ReviewPage.css';
 
@@ -29,7 +29,6 @@ function shuffleWithCorrect(options, correctIndex) {
 
 // ── 단일 오답 복습 카드 ─────────────────────────────────────────────────────
 const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
-  const { updateWrongAnswerCorrectIndex } = useApp();
 
   // 원본 options 확정
   const rawOptions = useMemo(() => {
@@ -46,26 +45,34 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
     return -1;
   }, [question.correctIndex]);
 
-  // 서버에서 정답·해설 가져오기 (마운트 시 1회)
+  // incorrects API에서 이미 explanation 포함 — 없는 경우만 별도 조회
   const [fetchedExplanation, setFetchedExplanation] = useState('');
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationUnavailable, setExplanationUnavailable] = useState(false);
   useEffect(() => {
-    const id = question.id;
-    if (!id || isNaN(Number(id))) return;
+    // 리셋
+    setFetchedExplanation('');
+    setExplanationUnavailable(false);
 
+    if (question.explanation) return; // 이미 있으면 중복 호출 불필요
+    const id = question.id;
+    if (!id || isNaN(Number(id))) {
+      setExplanationUnavailable(true);
+      return;
+    }
+
+    setExplanationLoading(true);
     aiService.getExplanation(id)
       .then((data) => {
-        console.log('[DEBUG] getExplanation 응답:', JSON.stringify(data));
-        // 해설 저장
         const exp = typeof data === 'string' ? data : (data?.explanation ?? '');
-        if (exp) setFetchedExplanation(exp);
-
-        // 정답 인덱스 업데이트 (아직 없는 경우)
-        const ans = data?.answer ?? data?.correctAnswer ?? data?.correct_answer;
-        if (ans != null && rawCorrectIndex < 0) {
-          updateWrongAnswerCorrectIndex(String(id), Number(ans) - 1);
+        if (exp) {
+          setFetchedExplanation(exp);
+        } else {
+          setExplanationUnavailable(true);
         }
       })
-      .catch(() => {});
+      .catch(() => setExplanationUnavailable(true))
+      .finally(() => setExplanationLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
 
@@ -138,9 +145,7 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
             </Badge>
           )}
         </div>
-        <span className="review-step-label">
-          {answered ? '해설 확인' : '다시 풀기'}
-        </span>
+        <span className="review-step-label">{answered ? '해설 확인' : '다시 풀기'}</span>
       </div>
 
       {/* ── 내 이전 답변 ───────────────────────────────────────────── */}
@@ -206,9 +211,17 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
             <strong>해설</strong>
             {displayExplanation ? (
               <p>{displayExplanation}</p>
+            ) : explanationLoading ? (
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                해설 불러오는 중...
+              </p>
+            ) : explanationUnavailable ? (
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                이 문제는 해설 정보가 없습니다.
+              </p>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                해설을 불러오는 중이거나 백엔드에서 제공하지 않습니다.
+                해설 불러오는 중...
               </p>
             )}
           </div>
@@ -235,7 +248,35 @@ const TOPIC_COLORS = [
 ];
 
 const ReviewPage = () => {
-  const { wrongAnswers, masterWrongAnswer } = useApp();
+  const { masterWrongAnswer, wrongAnswers: localWrongAnswers } = useApp();
+
+  // 서버에서 가져온 오답 목록
+  const [serverAnswers, setServerAnswers] = useState(null); // null = 로딩 중
+  const [fetchError,    setFetchError]    = useState(null);
+
+  // 마운트 시점의 로컬 오답(AI 해설 포함) 스냅샷 — 서버 데이터 병합에 사용
+  const localSnapshotRef = useRef(localWrongAnswers);
+
+  useEffect(() => {
+    const localSnap = localSnapshotRef.current;
+    aiService.getIncorrects()
+      .then((serverData) => {
+        // 서버 explanation이 비어있는 경우 세션 중 AI가 생성한 해설로 보완
+        const enriched = serverData.map(sa => {
+          const local = localSnap.find(lwa => String(lwa.id) === String(sa.id));
+          return {
+            ...sa,
+            explanation: sa.explanation || local?.explanation || '',
+          };
+        });
+        setServerAnswers(enriched);
+      })
+      .catch((err) => {
+        console.error('[ReviewPage] 오답 조회 실패:', err);
+        setFetchError(err.message);
+        setServerAnswers([]);
+      });
+  }, []);
 
   // 아코디언: 펼쳐진 과목 ID
   const [expandedId,   setExpandedId]   = useState(null);
@@ -244,8 +285,23 @@ const ReviewPage = () => {
   const [selectedTopicId,   setSelectedTopicId]   = useState(null);
   const [currentIndex,      setCurrentIndex]      = useState(0);
 
-  // 마스터 안 된 오답만 복습 대상
-  const pendingAnswers = wrongAnswers.filter(q => !q.isMastered);
+  // 마스터/삭제 처리된 ID 세트 (로컬 UI 상태)
+  const [masteredIds, setMasteredIds] = useState(new Set());
+  const [deletedIds,  setDeletedIds]  = useState(() => {
+    try {
+      const saved = localStorage.getItem('review_deleted_ids');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('review_deleted_ids', JSON.stringify([...deletedIds]));
+  }, [deletedIds]);
+
+  // 마스터·삭제 안 된 오답만 복습 대상 (로딩 중엔 빈 배열)
+  const pendingAnswers = (serverAnswers ?? []).filter(
+    q => !masteredIds.has(q.id) && !deletedIds.has(q.id)
+  );
 
   // 과목 트리
   const subjectTree = useMemo(() => {
@@ -283,10 +339,25 @@ const ReviewPage = () => {
   const isReviewing = selectedSubjectId && selectedTopicId;
 
   const handleMastered = (id) => {
-    masterWrongAnswer(id);
+    setMasteredIds(prev => new Set([...prev, String(id)]));
     if (validIndex >= filteredAnswers.length - 1) {
       setCurrentIndex(Math.max(0, validIndex - 1));
     }
+  };
+
+  const handleDeleteSubject = (subjectId) => {
+    const ids = (serverAnswers ?? [])
+      .filter(q => (q.subjectId || 'unknown') === subjectId)
+      .map(q => String(q.id));
+    setDeletedIds(prev => new Set([...prev, ...ids]));
+    if (expandedId === subjectId) setExpandedId(null);
+  };
+
+  const handleDeleteTopic = (subjectId, topicName) => {
+    const ids = (serverAnswers ?? [])
+      .filter(q => (q.subjectId || 'unknown') === subjectId && (q.topic || '기본 카테고리') === topicName)
+      .map(q => String(q.id));
+    setDeletedIds(prev => new Set([...prev, ...ids]));
   };
 
   const handleSelectTopic = (subjectId, topicId) => {
@@ -301,7 +372,19 @@ const ReviewPage = () => {
     setCurrentIndex(0);
   };
 
-  // ── 뷰 분기 0: 오답 없음 ──────────────────────────────────────────────
+  // ── 뷰 분기 0: 로딩 중 ────────────────────────────────────────────────
+  if (serverAnswers === null) {
+    return (
+      <div className="review-page animate-fade-in">
+        <header className="page-header"><h1 className="page-title">오답 노트</h1></header>
+        <div className="review-empty">
+          <p style={{ color: 'var(--text-secondary)' }}>오답 목록 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 뷰 분기 1: 오답 없음 ──────────────────────────────────────────────
   if (pendingAnswers.length === 0) {
     return (
       <div className="review-page animate-fade-in">
@@ -421,10 +504,19 @@ const ReviewPage = () => {
                     </div>
                   </div>
                 </div>
-                <ChevronRight
-                  size={18}
-                  className={`review-accordion__chevron ${isExpanded ? 'review-accordion__chevron--open' : ''}`}
-                />
+                <div className="review-accordion__header-right">
+                  <button
+                    className="review-accordion__delete"
+                    title="과목 전체 삭제"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteSubject(subj.id); }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                  <ChevronRight
+                    size={18}
+                    className={`review-accordion__chevron ${isExpanded ? 'review-accordion__chevron--open' : ''}`}
+                  />
+                </div>
               </div>
 
               {/* 아코디언 바디: 토픽 목록 */}
@@ -442,7 +534,13 @@ const ReviewPage = () => {
                       </div>
                       <div className="review-accordion__topic-right">
                         <Badge variant="warning" size="sm">{topic.count}문제</Badge>
-                        <ChevronRight size={14} className="review-accordion__topic-arrow" />
+                        <button
+                          className="review-accordion__delete"
+                          title="토픽 삭제"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTopic(subj.id, topic.name); }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   ))}

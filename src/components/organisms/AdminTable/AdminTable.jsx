@@ -1,7 +1,7 @@
 import React from 'react';
 import './AdminTable.css';
 
-const AdminTable = ({ columns, data, isLoading, emptyMessage = '데이터가 없습니다.' }) => {
+const AdminTable = ({ columns, data, isLoading, emptyMessage = '데이터가 없습니다.', onRowClick, highlightRowId, rowIdKey = 'id' }) => {
   if (isLoading) {
     return (
       <div className="admin-table-loading">
@@ -27,7 +27,14 @@ const AdminTable = ({ columns, data, isLoading, emptyMessage = '데이터가 없
         </thead>
         <tbody>
           {data.map((row, rowIdx) => (
-            <tr key={rowIdx}>
+            <tr
+              key={rowIdx}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={[
+                onRowClick ? 'admin-table__row--clickable' : '',
+                highlightRowId != null && row[rowIdKey] === highlightRowId ? 'admin-table__row--active' : '',
+              ].filter(Boolean).join(' ')}
+            >
               {columns.map((col, colIdx) => (
                 <td key={colIdx}>
                   {col.render ? col.render(row) : row[col.accessor]}

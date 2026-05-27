@@ -1,0 +1,54 @@
+/* admin 페이지 전용 Input 라이트 테마 오버라이드
+   전역 다크 변수(--bg-input: #12122a 등)를 admin 화이트 카드 배경에 맞게 재정의 */
+
+.admin-page .input__container {
+  background: #ffffff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.admin-page .input__container:focus-within {
+  border-color: #6C5CE7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.12);
+}
+
+.admin-page .input__container--error {
+  border-color: #e74c3c !important;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+}
+
+.admin-page .input__container--disabled {
+  background: #f5f5f5;
+  opacity: 0.6;
+}
+
+.admin-page .input__field {
+  color: #333333;
+  font-size: 0.9rem;
+}
+
+.admin-page .input__field::placeholder {
+  color: #aaaaaa;
+}
+
+.admin-page .input__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555555;
+}
+
+.admin-page .input__error {
+  font-size: 0.78rem;
+  color: #e74c3c;
+}
+
+.admin-page .input__hint {
+  font-size: 0.78rem;
+  color: #999999;
+}
+
+/* 사이즈별 padding 재정의 */
+.admin-page .input__container--md { padding: 8px 12px; }
+.admin-page .input__container--sm { padding: 5px 10px; }
+.admin-page .input__container--lg { padding: 11px 16px; }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Brain, Trophy, BarChart3,
-  BookOpen, ChevronLeft, ChevronRight, Bell, Settings, LogOut, FolderOpen, User,
+  BookOpen, ChevronLeft, ChevronRight, Bell, Settings, LogOut, FolderOpen,
   CheckCheck, BookMarked, Zap, Info
 } from 'lucide-react';
 import { Avatar } from '../../atoms';
@@ -72,7 +72,7 @@ const Sidebar = () => {
 
       {/* User Info */}
       {!collapsed && (
-        <div className="sidebar__user" onClick={() => navigate('/mypage')} style={{ cursor: 'pointer' }}>
+        <div className="sidebar__user">
           <Avatar name={user.name} size="md" level={user.level} />
           <div className="sidebar__user-info">
             <p className="sidebar__user-name">{user.name}</p>
@@ -177,10 +177,7 @@ const Sidebar = () => {
               <Settings size={18} />
               <span>설정</span>
             </NavLink>
-            <NavLink to="/mypage" className="sidebar__action">
-              <User size={18} />
-              <span>마이페이지</span>
-            </NavLink>
+
           </>
         )}
         <button className="sidebar__logout-btn" onClick={handleLogout}>

@@ -50,3 +50,44 @@
   display: flex;
   gap: 0.5rem;
 }
+
+/* ── 경험치 조정 폼 ── */
+.exp-adjust-trigger {
+  cursor: pointer;
+  font-weight: 600;
+  color: #6C5CE7;
+  text-decoration: underline dotted;
+  white-space: nowrap;
+}
+
+.exp-adjust-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 260px;
+}
+
+.exp-adjust-form__row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.exp-adjust-form__delta {
+  width: 110px !important;
+}
+
+.exp-adjust-form__reason {
+  flex: 1;
+}
+
+.exp-adjust-form__result {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #27ae60;
+  padding: 0.2rem 0;
+}
+
+.exp-adjust-form__actions {
+  display: flex;
+  gap: 0.4rem;
+}

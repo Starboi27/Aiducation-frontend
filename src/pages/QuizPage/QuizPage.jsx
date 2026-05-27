@@ -40,7 +40,6 @@ const QuizPage = () => {
   const location = useLocation();
   const _params = new URLSearchParams(location.search);
   const difficulty = Number(_params.get('difficulty')) || 3;
-  const count = Number(_params.get('count')) || 10;
 
   const [questions, setQuestions] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,8 +48,10 @@ const QuizPage = () => {
   // subject / topic 정보 조회
   const subject = subjectId ? getSubjectById(subjectId) : null;
   const topic = subject && topicId && topicId !== 'all'
-    ? subject.topics.find(t => t.id === topicId)
+    ? subject.topics.find(t => String(t.id) === String(topicId))
     : null;
+
+  const count = Number(_params.get('count')) || (topic ? topic.quizCount : 10) || 10;
 
   const quizTitle = topic
     ? `${topic.name} 퀴즈`
@@ -94,26 +95,38 @@ const QuizPage = () => {
             return;
           }
 
-          const promises = allTopics.map(async (t) => {
-            if (tqCache[t.id]) return tqCache[t.id];
-
-            const generated = await aiService.generateQuiz(t.name, subj.name, {
-              count,
-              difficulty,
-              conceptId: t.id,
+          if (count === null) {
+            // 전체 퀴즈: 캐시된 문제만 사용, 새 생성 없음
+            const cached = allTopics.flatMap(t =>
+              (tqCache[t.id] || []).map(q => ({ ...q, subjectId: subj.id, subjectName: subj.name }))
+            );
+            setQuestions(cached.length > 0 ? cached : MOCK_QUESTIONS);
+          } else {
+            // 난이도/문제 수 지정 퀴즈: 토픽별 균등 생성
+            const limitPerTopic = Math.ceil(count / allTopics.length);
+            const promises = allTopics.map(async (t) => {
+              let questionsOfTopic = [];
+              if (tqCache[t.id]) {
+                questionsOfTopic = tqCache[t.id];
+              } else {
+                const generated = await aiService.generateQuiz(t.name, subj.name, {
+                  count: limitPerTopic,
+                  difficulty,
+                  conceptId: t.id,
+                });
+                questionsOfTopic = generated.map(q => ({
+                  ...q, subjectId: subj.id, subjectName: subj.name
+                }));
+                setTQ(t.id, questionsOfTopic);
+              }
+              return questionsOfTopic.slice(0, limitPerTopic);
             });
-            const enhanced = generated.map(q => ({
-              ...q, subjectId: subj.id, subjectName: subj.name
-            }));
-            setTQ(t.id, enhanced);
-            return enhanced;
-          });
-
-          const results = await Promise.all(promises);
-          setQuestions(results.flat().slice(0, count));
+            const results = await Promise.all(promises);
+            setQuestions(results.flat().slice(0, count));
+          }
 
         } else {
-          const currentTopic = subj?.topics?.find(t => t.id === topicId);
+          const currentTopic = subj?.topics?.find(t => String(t.id) === String(topicId));
           if (!currentTopic) {
             setQuestions(MOCK_QUESTIONS);
             setLoading(false);

@@ -69,7 +69,8 @@ const FileUploader = ({ onAnalysisComplete }) => {
       // Step 1: 과목 먼저 생성하여 subjectId 확보
       const subjectName = customSubjectName.trim() || firstFile.file.name.replace(/\.[^.]+$/, '');
       const createdSubject = await subjectService.createSubject(subjectName);
-      const subjectId = createdSubject.subjectId;
+      // 백엔드 Create 응답이 subjectId를 포함하지 않는 경우를 방어 (id 필드도 시도)
+      const subjectId = createdSubject.subjectId ?? createdSubject.id;
 
       // Step 2: 파일 업로드 + 폴링으로 AI 분석 완료 대기
       const newSubject = await aiService.analyzeDocument(

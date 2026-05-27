@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './QuizOption.css';
 
 const QuizOption = ({ label, text, selected, correct, wrong, disabled, onClick }) => {

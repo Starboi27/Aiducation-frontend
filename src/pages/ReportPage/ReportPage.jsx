@@ -8,11 +8,16 @@ import './ReportPage.css';
 const ReportPage = () => {
   const { user, wrongAnswers, isWrongAnswersLoading } = useApp();
   const [dashboardData, setDashboardData] = useState(null);
+  const [incorrectData, setIncorrectData] = useState(null);
 
   useEffect(() => {
-    userService.getDashboard()
-      .then(data => setDashboardData(data))
-      .catch(() => {});
+    Promise.all([
+      userService.getDashboard().catch(() => null),
+      userService.getIncorrects().catch(() => null),
+    ]).then(([dashboard, incorrect]) => {
+      setDashboardData(dashboard);
+      setIncorrectData(incorrect);
+    });
   }, []);
 
   // 1. 오답 데이터를 기반으로 "세부 주제(Topic)"별 취약점 통계 추출
@@ -97,7 +102,7 @@ const ReportPage = () => {
   const summaryStats = [
     { label: '종합 정답률', value: displayAccuracy, icon: TrendingUp, color: 'var(--color-primary)' },
     { label: '연속 학습일', value: `${user?.streak || 0}일`, icon: Flame, color: '#fdcb6e' },
-    { label: '누적 오답 발견', value: `${wrongAnswers.length}문제`, icon: BookOpen, color: '#ff7675' },
+    { label: '누적 오답 발견', value: `${(incorrectData?.totalCount ?? 0) - (dashboardData?.solvedCount ?? 0)}문제`, icon: BookOpen, color: '#ff7675' },
   ];
 
   return (

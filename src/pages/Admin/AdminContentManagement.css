@@ -44,3 +44,59 @@
 .status-badge.rejected   { background: #fdedec; color: #e74c3c; }
 .status-badge.pending    { background: #fef9e7; color: #f39c12; }
 .status-badge.processing { background: #ebf5fb; color: #2980b9; }
+
+/* ── 콘텐츠 필터 바 ── */
+.content-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: -0.5rem;
+}
+
+.content-filter-bar__type {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.filter-chip {
+  padding: 0.3rem 0.85rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-chip:hover { border-color: #6C5CE7; color: #6C5CE7; }
+.filter-chip--active {
+  background: #6C5CE7;
+  border-color: #6C5CE7;
+  color: #fff;
+  font-weight: 600;
+}
+
+.content-filter-bar__search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.content-filter-bar__search .input-wrapper {
+  width: 220px;
+}
+
+/* ── 콘텐츠 유형 배지 ── */
+.ct-badge {
+  display: inline-block;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.ct-badge--file    { background: #ebf5fb; color: #2980b9; }
+.ct-badge--concept { background: #f0edff; color: #6C5CE7; }
+.ct-badge--quiz    { background: #eafaf1; color: #27ae60; }

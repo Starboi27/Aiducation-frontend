@@ -12,6 +12,7 @@ import './Dashboard.css';
 const Dashboard = () => {
   const { user, notifications, wrongAnswers } = useApp();
   const [dashboardData, setDashboardData] = useState(null);
+  const [incorrectData, setIncorrectData] = useState(null);
   const [reviewsTotalCount, setReviewsTotalCount] = useState(0);
   const [todayReviews, setTodayReviews] = useState([]);
   const [isReviewsExpanded, setIsReviewsExpanded] = useState(false);
@@ -22,11 +23,13 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       try {
         setIsLoading(true);
-        const [data, reviewsRes] = await Promise.all([
+        const [data, reviewsRes, incorrectRes] = await Promise.all([
           userService.getDashboard(),
           reviewService.getTodayReviews().catch(() => null),
+          userService.getIncorrects().catch(() => null),
         ]);
         setDashboardData(data);
+        setIncorrectData(incorrectRes);
         if (reviewsRes) {
           if (Array.isArray(reviewsRes.reviews)) {
             setTodayReviews(reviewsRes.reviews);
@@ -85,7 +88,8 @@ const Dashboard = () => {
       exp: user.exp,
       totalExp: user.totalExp,
       nextLevelExp: user.nextLevelExp || 3000
-    }
+    },
+    totalCount: incorrectData?.totalCount ?? user.totalSolved ?? 0,
   };
 
   return (
@@ -113,7 +117,7 @@ const Dashboard = () => {
         <StatCard
           icon={BrainCircuit}
           label="총 푼 문제 수"
-          value={stats.solvedCount.toLocaleString()}
+          value={stats.totalCount.toLocaleString()}
           color="primary"
           description="지금까지 도전한 총 문제 수"
         />

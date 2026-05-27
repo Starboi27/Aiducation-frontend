@@ -28,17 +28,11 @@
 
 .admin-dashboard-main-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
-@media (max-width: 1024px) {
-  .admin-dashboard-main-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.admin-chart-section, .admin-recent-section {
+.admin-recent-section {
   background-color: white;
   border-radius: 12px;
   padding: 1.5rem;
@@ -56,21 +50,6 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: #333;
-}
-
-.chart-placeholder {
-  height: 300px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed #e0e0e0;
-}
-
-.placeholder-content {
-  color: #999;
-  font-weight: 500;
 }
 
 .log-list {

@@ -150,17 +150,16 @@ const SettingsPage = () => {
     }
     setIsSaving(true);
     try {
-      const [hour, minute] = studySettings.studyAlarmTime.split(':').map(Number);
-      const alarmTime = { hour, minute, second: 0, nano: 0 };
-      const payload = {
-        dailyGoal,
-        defaultDifficulty: Number(studySettings.defaultDifficulty),
-        studyAlarmTime: alarmTime,
-      };
+      const [h, m] = studySettings.studyAlarmTime.split(':');
+      const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 
       await Promise.all([
-        userService.updateStudySettings(payload),
-        reviewService.updateAlarmTime(alarmTime),
+        userService.updateStudySettings({
+          dailyGoal,
+          defaultDifficulty: Number(studySettings.defaultDifficulty),
+          studyAlarmTime: timeStr,
+        }),
+        reviewService.updateAlarmTime(timeStr),
       ]);
       showMsg('success', '학습 설정이 저장되었습니다.');
     } catch (err) {

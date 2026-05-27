@@ -54,14 +54,23 @@ const AdminDashboard = () => {
         },
         {
           title: '평균 정답률',
-          value: `${(accuracyRate * 100).toFixed(1)}%`,
+          value: `${Number(accuracyRate).toFixed(1)}%`,
           subValue: '전체 유저 기준',
           icon: 'analytics',
-          trend: accuracyRate >= 0.7 ? 1 : -1,
+          trend: accuracyRate >= 70 ? 1 : -1,
         },
       ]);
 
-      setRecentTasks((taskData?.tasks ?? []).slice(0, 5));
+      setRecentTasks(
+        (taskData?.tasks ?? [])
+          .sort((a, b) => {
+            if (!a.createdAt && !b.createdAt) return 0;
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          })
+          .slice(0, 5)
+      );
     } catch (err) {
       console.error('관리자 대시보드 로드 실패:', err);
     } finally {
@@ -96,17 +105,6 @@ const AdminDashboard = () => {
       </div>
 
       <div className="admin-dashboard-main-grid">
-        <div className="admin-chart-section">
-          <div className="section-header">
-            <h3>일별 퀴즈 생성 트렌드</h3>
-          </div>
-          <div className="chart-placeholder">
-            <div className="placeholder-content">
-              <span>차트 데이터 로딩 중...</span>
-            </div>
-          </div>
-        </div>
-
         <div className="admin-recent-section">
           <div className="section-header">
             <h3>최근 AI 작업 로그</h3>
