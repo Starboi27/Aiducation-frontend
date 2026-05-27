@@ -67,7 +67,7 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
       .then((data) => {
         const ans = data?.answer ?? data?.correctAnswer ?? data?.correct_answer;
         if (ans != null) {
-          setFetchedAnswers(prev => ({ ...prev, [id]: Number(ans) - 1 }));
+          setFetchedAnswers(prev => ({ ...prev, [id]: Number(ans) }));
         }
       })
       .catch(() => {});
@@ -161,7 +161,7 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
       expGained,
       difficulty: current.difficulty,
       timeUsed: 30 - timeLeft,
-      selectedAnswer: optionIdx !== null ? optionIdx + 1 : 0,
+      selectedAnswer: optionIdx !== null ? optionIdx : 0,
     };
     const newResults = [...results, newResult];
     setResults(newResults);

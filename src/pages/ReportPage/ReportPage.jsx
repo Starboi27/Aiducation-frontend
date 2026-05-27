@@ -102,7 +102,7 @@ const ReportPage = () => {
   const summaryStats = [
     { label: '종합 정답률', value: displayAccuracy, icon: TrendingUp, color: 'var(--color-primary)' },
     { label: '연속 학습일', value: `${user?.streak || 0}일`, icon: Flame, color: '#fdcb6e' },
-    { label: '누적 오답 발견', value: `${(incorrectData?.totalCount ?? 0) - (dashboardData?.solvedCount ?? 0)}문제`, icon: BookOpen, color: '#ff7675' },
+    { label: '누적 오답 발견', value: `${incorrectData?.totalCount ?? 0}문제`, icon: BookOpen, color: '#ff7675' },
   ];
 
   return (

@@ -51,7 +51,12 @@ const QuizPage = () => {
     ? subject.topics.find(t => String(t.id) === String(topicId))
     : null;
 
-  const count = Number(_params.get('count')) || (topic ? topic.quizCount : 10) || 10;
+  const _rawCount = _params.get('count');
+  const count = _rawCount !== null
+    ? (Number(_rawCount) || 10)
+    : topicId !== 'all'
+      ? (topic ? topic.quizCount : 10) || 10
+      : null;
 
   const quizTitle = topic
     ? `${topic.name} 퀴즈`
@@ -107,7 +112,7 @@ const QuizPage = () => {
             const promises = allTopics.map(async (t) => {
               let questionsOfTopic = [];
               if (tqCache[t.id]) {
-                questionsOfTopic = tqCache[t.id];
+                questionsOfTopic = tqCache[t.id].slice(0, limitPerTopic);
               } else {
                 const generated = await aiService.generateQuiz(t.name, subj.name, {
                   count: limitPerTopic,
@@ -134,7 +139,7 @@ const QuizPage = () => {
           }
 
           if (tqCache[currentTopic.id]) {
-            setQuestions(tqCache[currentTopic.id]);
+            setQuestions(tqCache[currentTopic.id].slice(0, count));
             setLoading(false);
             return;
           }

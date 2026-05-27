@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { aiService } from '../../services/aiService';
+import { subjectService } from '../../services/subjectService';
+import { userService } from '../../services/userService';
 import QuizOption from '../../components/molecules/QuizOption/QuizOption';
 import { Button, Badge } from '../../components/atoms';
 import {
@@ -248,7 +250,7 @@ const TOPIC_COLORS = [
 ];
 
 const ReviewPage = () => {
-  const { masterWrongAnswer, wrongAnswers: localWrongAnswers } = useApp();
+  const { masterWrongAnswer, wrongAnswers: localWrongAnswers, deleteSubject } = useApp();
 
   // 서버에서 가져온 오답 목록
   const [serverAnswers, setServerAnswers] = useState(null); // null = 로딩 중
@@ -345,12 +347,33 @@ const ReviewPage = () => {
     }
   };
 
-  const handleDeleteSubject = (subjectId) => {
-    const ids = (serverAnswers ?? [])
+  const handleDeleteSubject = async (subjectId) => {
+    // 낙관적 업데이트
+    const removedIds = (serverAnswers ?? [])
       .filter(q => (q.subjectId || 'unknown') === subjectId)
       .map(q => String(q.id));
-    setDeletedIds(prev => new Set([...prev, ...ids]));
+    const prevServerAnswers = serverAnswers;
+    const prevDeletedIds = deletedIds;
+
+    setDeletedIds(prev => new Set([...prev, ...removedIds]));
+    setServerAnswers(prev => (prev ?? []).filter(q => (q.subjectId || 'unknown') !== subjectId));
     if (expandedId === subjectId) setExpandedId(null);
+
+    // subjectId가 실제 과목 ID가 아닌 경우(예: 'server', 'unknown') API 호출 스킵
+    const isRealSubjectId = subjectId !== 'server' && subjectId !== 'unknown' && !isNaN(Number(subjectId));
+    if (!isRealSubjectId) return;
+
+    try {
+      await subjectService.deleteSubject(subjectId);
+      deleteSubject(subjectId);
+      const fresh = await userService.getIncorrects().catch(() => null);
+      if (fresh) setServerAnswers(fresh);
+    } catch (err) {
+      // 롤백
+      setServerAnswers(prevServerAnswers);
+      setDeletedIds(prevDeletedIds);
+      alert(`과목 삭제 실패: ${err.message}`);
+    }
   };
 
   const handleDeleteTopic = (subjectId, topicName) => {

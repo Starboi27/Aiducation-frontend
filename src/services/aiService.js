@@ -224,8 +224,8 @@ async function realGenerateQuiz(topicName, subjectName, options) {
         question: q.question,
         // 백엔드 필드명: examples (options 아님)
         options: q.examples ?? q.options ?? [],
-        // 백엔드 answer는 1-based → 프론트 correctIndex는 0-based
-        correctIndex: q.answer != null ? q.answer - 1 : null,
+        // 백엔드 answer는 0-based, 프론트 correctIndex와 동일
+        correctIndex: q.answer != null ? q.answer : null,
         explanation: q.explanation ?? '',
       }));
     }
@@ -499,7 +499,7 @@ export const aiService = {
   /**
    * 내 오답 목록 조회 → IncorrectInfo[]
    * GET /api/v1/users/me/incorrects
-   * IncorrectInfo: { quizId, question, examples, correctAnswer(1-based), explanation, difficulty, conceptName }
+   * IncorrectInfo: { quizId, question, examples, correctAnswer(0-based), explanation, difficulty, conceptName }
    */
   async getIncorrects() {
     if (AI_CONFIG.useMock) {
@@ -513,7 +513,7 @@ export const aiService = {
       id: String(item.quizId),
       question: item.question,
       options: item.examples ?? [],
-      correctIndex: item.correctAnswer != null ? item.correctAnswer - 1 : -1,
+      correctIndex: item.correctAnswer != null ? item.correctAnswer : -1,
       explanation: item.explanation ?? '',
       difficulty: item.difficulty ?? 3,
       topic: item.conceptName ?? '기본 카테고리',

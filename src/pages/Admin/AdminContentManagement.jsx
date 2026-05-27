@@ -81,7 +81,8 @@ const AdminContentManagement = () => {
     if (reason === null) return;
     if (!reason.trim()) { alert('삭제 사유를 입력해주세요.'); return; }
     try {
-      await adminService.deleteFile(item.id, reason.trim());
+      const numericId = String(item.id).replace(/\D/g, '');
+      await adminService.deleteFile(numericId || item.id, reason.trim());
       setAllContents((prev) => prev.filter((c) => c.id !== item.id));
     } catch (err) {
       alert(`삭제 실패: ${err.message}`);

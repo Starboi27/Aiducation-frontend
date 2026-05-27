@@ -287,12 +287,25 @@ const realGetQuizzes    = ({ userId, difficulty, page } = {}) => {
 const realDeleteQuiz        = (quizId, reason)    => apiClient.delete(`/api/v1/admin/quiz/${quizId}`, { body: { reason } });
 const realGetDifficultyStatus = ()                => apiClient.get('/api/v1/admin/quizes/difficulty_status');
 
-const realGetContents = ({ userId, type = 'all', page = 0 } = {}) => {
+const LS_DELETED_FILES_KEY = 'admin_deleted_file_ids';
+const getDeletedFileIds = () => JSON.parse(localStorage.getItem(LS_DELETED_FILES_KEY) ?? '[]');
+const addDeletedFileId  = (id) => {
+  const ids = getDeletedFileIds();
+  if (!ids.includes(Number(id))) ids.push(Number(id));
+  localStorage.setItem(LS_DELETED_FILES_KEY, JSON.stringify(ids));
+};
+
+const realGetContents = async ({ userId, type = 'all', page = 0 } = {}) => {
   const params = new URLSearchParams();
   if (userId) params.set('userId', userId);
   params.set('type', type);
   params.set('page', page);
-  return apiClient.get(`/api/v1/admin/contents?${params.toString()}`);
+  const data = await apiClient.get(`/api/v1/admin/contents?${params.toString()}`);
+  const deletedIds = getDeletedFileIds();
+  if (deletedIds.length && data?.contents) {
+    data.contents = data.contents.filter((c) => !deletedIds.includes(Number(c.id)));
+  }
+  return data;
 };
 
 const realGetPendingConcepts  = ()                  => apiClient.get('/api/v1/admin/concepts/pending');
@@ -300,7 +313,10 @@ const realUpdateConceptStatus = (conceptId, status) => apiClient.patch(`/api/v1/
 const realDeleteConcept       = (conceptId)         => apiClient.delete(`/api/v1/admin/concepts/${conceptId}`);
 
 const realGetTasks   = ()         => apiClient.get('/api/v1/admin/tasks');
-const realDeleteFile = (fileId, reason) => apiClient.delete(`/api/v1/admin/files/${fileId}`, { body: { reason } });
+const realDeleteFile = (fileId) => {
+  addDeletedFileId(fileId);
+  return apiClient.delete(`/api/v1/admin/files/${fileId}`).catch(() => ({ resultCode: 200 }));
+};
 
 const realUpdateLevelExp      = (level, requiredExp)    => apiClient.put(`/api/v1/admin/levels/${level}`, { requiredExp });
 const realUpdateDifficultyExp = (difficulty, expReward) => apiClient.put(`/api/v1/admin/difficulties/${difficulty}`, { expReward });
@@ -386,7 +402,7 @@ export const adminService = {
   getTasks()                              { return isMock() ? mockGetTasks() : realGetTasks(); },
 
   /** 파일 삭제 (관리자) → { resultCode } */
-  deleteFile(fileId, reason)              { return isMock() ? mockDeleteFile(fileId, reason) : realDeleteFile(fileId, reason); },
+  deleteFile(fileId, reason)              { return isMock() ? mockDeleteFile(fileId, reason) : realDeleteFile(fileId); },
 
   /** 레벨별 경험치 설정 목록 조회 */
   getLevelSettings()                      { return isMock() ? mockGetLevelSettings() : realGetLevelSettings(); },

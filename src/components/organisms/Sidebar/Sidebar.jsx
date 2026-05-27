@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../atoms';
 import { StreakDisplay } from '../../molecules';
+import { getRank } from '../../molecules/ExpCard/ExpCard';
 import { useApp } from '../../../context/AppContext';
 import './Sidebar.css';
 
@@ -76,7 +77,7 @@ const Sidebar = () => {
           <Avatar name={user.name} size="md" level={user.level} />
           <div className="sidebar__user-info">
             <p className="sidebar__user-name">{user.name}</p>
-            <p className="sidebar__user-exp">{user.totalExp?.toLocaleString()} XP</p>
+            <p className="sidebar__user-exp">{getRank(user.totalExp ?? 0).name}</p>
           </div>
         </div>
       )}
