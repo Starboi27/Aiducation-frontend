@@ -84,10 +84,10 @@ const Dashboard = () => {
     solvedCount: dashboardData?.solvedCount ?? user.totalSolved ?? 0,
     correctRate: toPercent(dashboardData?.correctRate ?? user.accuracy ?? 0),
     growth: dashboardData?.growthIndicator ?? {
-      level: user.level,
-      exp: user.exp,
-      totalExp: user.totalExp,
-      nextLevelExp: user.nextLevelExp || 3000
+      level: user.level ?? 1,
+      exp: user.totalExp ?? 0,
+      totalExp: user.totalExp ?? 0,
+      nextLevelExp: user.nextLevelExp ?? 1000,
     },
     totalCount: incorrectData?.totalCount ?? user.totalSolved ?? 0,
   };
@@ -117,7 +117,7 @@ const Dashboard = () => {
         <StatCard
           icon={BrainCircuit}
           label="총 푼 문제 수"
-          value={stats.totalCount.toLocaleString()}
+          value={stats.solvedCount.toLocaleString()}
           color="primary"
           description="지금까지 도전한 총 문제 수"
         />

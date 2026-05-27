@@ -35,7 +35,7 @@ const QuizPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { subjectId, topicId } = useParams();
-  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex } = useApp();
+  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex, setUser } = useApp();
 
   const location = useLocation();
   const _params = new URLSearchParams(location.search);
@@ -44,6 +44,7 @@ const QuizPage = () => {
   const [questions, setQuestions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [finalExp, setFinalExp] = useState(0);
 
   // subject / topic 정보 조회
   const subject = subjectId ? getSubjectById(subjectId) : null;
@@ -170,34 +171,38 @@ const QuizPage = () => {
 
   const handleComplete = useCallback(async (res) => {
     setSubmitting(true);
-    // submitAll로 서버 정답 판정을 받아 correctIndex null 문제를 해결
     const answers = res.map(r => ({
       quizId: r.questionId,
       answer: r.selectedAnswer ?? 0,
     }));
 
     let finalRes = res;
+    let totalExp = 0;
     try {
       const submitResponse = await aiService.submitAll(answers);
-      console.log('[DEBUG] submitAll 응답:', JSON.stringify(submitResponse));
 
       if (submitResponse?.results?.length) {
         finalRes = res.map((r, i) => {
           const srv = submitResponse.results.find(s => String(s.quizId) === String(r.questionId))
             ?? submitResponse.results[i];
-          return srv ? { ...r, correct: srv.correct } : r;
+          return srv ? { ...r, correct: srv.correct, expGained: srv.expGained ?? r.expGained } : r;
         });
 
-        // 백엔드 필드명이 다를 수 있어 다양한 이름으로 시도
         submitResponse.results.forEach((srv) => {
-          const correctAns =
-            srv.correctAnswer ?? srv.answer ?? srv.correct_answer ??
-            srv.correctOption ?? srv.correctIdx;
+          const correctAns = srv.correctAnswer ?? srv.answer ?? srv.correct_answer;
           if (correctAns != null) {
-            updateWrongAnswerCorrectIndex(String(srv.quizId), Number(correctAns) - 1);
+            updateWrongAnswerCorrectIndex(String(srv.quizId), Number(correctAns));
           }
         });
       }
+
+      totalExp = submitResponse?.expGained ?? 0;
+
+      // currentExp로 AppContext user.totalExp 업데이트
+      if (submitResponse?.currentExp != null) {
+        setUser(prev => ({ ...prev, totalExp: submitResponse.currentExp }));
+      }
+
     } catch (e) {
       console.warn('submitAll 실패 — 로컬 정답 판정 사용:', e.message);
     }
@@ -205,11 +210,10 @@ const QuizPage = () => {
     const correctCount = finalRes.filter(r => r.correct).length;
     const totalCount = finalRes.length;
 
-    if (submitQuizResult) {
-      submitQuizResult(correctCount, totalCount);
-    }
+    if (submitQuizResult) submitQuizResult(correctCount, totalCount);
 
     setResults(finalRes);
+    setFinalExp(totalExp);
     setSubmitting(false);
     setComplete(true);
   }, [submitQuizResult, updateWrongAnswerCorrectIndex]);
@@ -217,15 +221,17 @@ const QuizPage = () => {
   if (submitting) {
     return (
       <div className="quiz-page__loading">
-        <Loader2 size={48} className="animate-spin text-primary" style={{ margin: '0 auto', marginBottom: '16px' }} />
+        <Loader2 size={52} className="animate-spin" style={{ marginBottom: '20px' }} />
         <h2>결과를 집계하고 있습니다...</h2>
         <p>잠시만 기다려주세요.</p>
+        <div className="quiz-page__loading-dots">
+          <span /><span /><span />
+        </div>
       </div>
     );
   }
 
   if (complete) {
-    const totalExp = results.reduce((acc, curr) => acc + curr.expGained, 0);
     const correctCount = results.filter(r => r.correct).length;
 
     return (
@@ -244,7 +250,7 @@ const QuizPage = () => {
           <div className="quiz-result__divider" />
           <div className="quiz-result__stat text-gold">
             <span className="quiz-result__stat-label"><Zap size={14} /> 획득 경험치</span>
-            <span className="quiz-result__stat-val">+{totalExp} XP</span>
+            <span className="quiz-result__stat-val">+{finalExp} XP</span>
           </div>
         </div>
 
@@ -275,9 +281,12 @@ const QuizPage = () => {
 
       {loading ? (
         <div className="quiz-page__loading">
-          <Loader2 size={48} className="animate-spin text-primary" style={{ margin: '0 auto', marginBottom: '16px' }} />
+          <Loader2 size={52} className="animate-spin" style={{ marginBottom: '20px' }} />
           <h2>AI가 맞춤형 퀴즈를 생성하고 있습니다...</h2>
           <p>잠시만 기다려주세요.</p>
+          <div className="quiz-page__loading-dots">
+            <span /><span /><span />
+          </div>
         </div>
       ) : error ? (
         <div className="quiz-page__error">

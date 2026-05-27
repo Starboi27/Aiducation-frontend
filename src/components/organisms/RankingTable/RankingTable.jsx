@@ -6,6 +6,7 @@ import "./RankingTable.css";
 
 const RankingTable = ({ users = [], currentUserId }) => {
   const sorted = [...users].sort((a, b) => b.totalExp - a.totalExp);
+  const maxExp = sorted[0]?.totalExp || 1;
 
   const MEDALS = {
     0: { icon: Trophy, color: "#ffd700", label: "1위" },
@@ -84,8 +85,8 @@ const RankingTable = ({ users = [], currentUserId }) => {
                   </span>
                 </div>
                 <ProgressBar
-                  value={user.totalExp - rank.min}
-                  max={user.nextRankExp - rank.min || 1}
+                  value={user.totalExp}
+                  max={maxExp}
                   variant="gold"
                   size="xs"
                 />
