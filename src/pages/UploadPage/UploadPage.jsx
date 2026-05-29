@@ -1,14 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FileUploader } from '../../components/organisms';
 import { Card } from '../../components/molecules';
 import './UploadPage.css';
 
 const UploadPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const presetSubjectId = location.state?.subjectId ?? null;
+  const presetSubjectName = location.state?.subjectName ?? null;
 
   const handleAnalysisComplete = (results) => {
-    // Store results in context or state and pass to QuizPage
     navigate('/quiz', { state: { questionsList: results } });
   };
 
@@ -16,12 +18,20 @@ const UploadPage = () => {
     <div className="upload-page animate-fade-in">
       <header className="page-header">
         <h1 className="page-title">파일 업로드 및 분석</h1>
-        <p className="page-desc">학습하고 싶은 강의 자료, PDF, 교안을 업로드하면 AI가 핵심 개념을 분석하여 퀴즈를 생성합니다.</p>
+        <p className="page-desc">
+          {presetSubjectName
+            ? `"${presetSubjectName}" 과목에 업로드할 파일을 선택하세요.`
+            : '학습하고 싶은 강의 자료, PDF, 교안을 업로드하면 AI가 핵심 개념을 분석하여 퀴즈를 생성합니다.'}
+        </p>
       </header>
 
       <div className="upload-page__content">
         <Card>
-          <FileUploader onAnalysisComplete={handleAnalysisComplete} />
+          <FileUploader
+            onAnalysisComplete={handleAnalysisComplete}
+            presetSubjectId={presetSubjectId}
+            presetSubjectName={presetSubjectName}
+          />
         </Card>
       </div>
     </div>

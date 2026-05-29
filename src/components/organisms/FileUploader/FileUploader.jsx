@@ -14,14 +14,14 @@ const TOPIC_COLORS = [
   '#00b894', '#e17055', '#0984e3', '#a29bfe',
 ];
 
-const FileUploader = ({ onAnalysisComplete }) => {
+const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjectName = null }) => {
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [progressInfo, setProgressInfo] = useState({ step: '', progress: 0 });
-  const [customSubjectName, setCustomSubjectName] = useState('');
-  const { addNotification } = useApp();
+  const [customSubjectName, setCustomSubjectName] = useState(presetSubjectName ?? '');
+  const { addNotification, updateSubject } = useApp();
   const navigate = useNavigate();
 
   const validateFile = (file) => {
@@ -66,11 +66,17 @@ const FileUploader = ({ onAnalysisComplete }) => {
     try {
       const firstFile = files[0];
 
-      // Step 1: 과목 먼저 생성하여 subjectId 확보
-      const subjectName = customSubjectName.trim() || firstFile.file.name.replace(/\.[^.]+$/, '');
-      const createdSubject = await subjectService.createSubject(subjectName);
-      // 백엔드 Create 응답이 subjectId를 포함하지 않는 경우를 방어 (id 필드도 시도)
-      const subjectId = createdSubject.subjectId ?? createdSubject.id;
+      // Step 1: subjectId 확보 — preset이 있으면 기존 과목 사용, 없으면 신규 생성
+      let subjectId;
+      let resolvedSubjectName;
+      if (presetSubjectId) {
+        subjectId = presetSubjectId;
+        resolvedSubjectName = presetSubjectName;
+      } else {
+        resolvedSubjectName = customSubjectName.trim() || firstFile.file.name.replace(/\.[^.]+$/, '');
+        const createdSubject = await subjectService.createSubject(resolvedSubjectName);
+        subjectId = createdSubject.subjectId ?? createdSubject.id;
+      }
 
       // Step 2: 파일 업로드 + 폴링으로 AI 분석 완료 대기
       const newSubject = await aiService.analyzeDocument(
@@ -79,21 +85,24 @@ const FileUploader = ({ onAnalysisComplete }) => {
         { subjectId }
       );
 
-      // 사용자가 직접 입력한 과목명이 있다면 덮어쓰기
-      if (customSubjectName.trim()) {
-        newSubject.subjectName = customSubjectName.trim();
-      }
+      newSubject.subjectName = resolvedSubjectName;
 
       setFiles(prev => prev.map(f => ({ ...f, status: 'done' })));
-      
+
       addNotification({
         type: 'info',
         title: '파일 분석 완료',
-        message: `"${newSubject.subjectName}"에서 ${newSubject.topics.length}개 주제를 발견했습니다.`,
+        message: `"${resolvedSubjectName}"에서 ${newSubject.topics?.length ?? 0}개 주제를 발견했습니다.`,
       });
 
-      // SubjectPage로 이동하며 pending subject 전달
-      navigate('/subjects', { state: { newSubject } });
+      if (presetSubjectId) {
+        // 기존 과목에 토픽 업데이트 후 과목 페이지로 이동
+        updateSubject(presetSubjectId, { topics: newSubject.topics ?? [] });
+        navigate('/subjects');
+      } else {
+        // 신규 과목: SubjectPage로 이동하며 pending subject 전달
+        navigate('/subjects', { state: { newSubject } });
+      }
     } catch (err) {
       console.error(err);
       setError('분석 중 오류가 발생했습니다: ' + err.message);
@@ -106,6 +115,19 @@ const FileUploader = ({ onAnalysisComplete }) => {
 
   return (
     <div className="file-uploader">
+      {/* 수동 추가 플로우: preset 과목 표시 배너 */}
+      {presetSubjectName && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '10px 14px', marginBottom: '16px',
+          borderRadius: '8px', backgroundColor: 'rgba(108,92,231,0.1)',
+          border: '1px solid rgba(108,92,231,0.3)', fontSize: '14px',
+        }}>
+          <Brain size={16} style={{ color: '#6C5CE7', flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-secondary)' }}>업로드 대상 과목:</span>
+          <strong style={{ color: '#6C5CE7' }}>{presetSubjectName}</strong>
+        </div>
+      )}
       {/* Drop zone */}
       <div
         className={`file-uploader__zone ${dragOver ? 'file-uploader__zone--drag' : ''}`}
@@ -149,32 +171,34 @@ const FileUploader = ({ onAnalysisComplete }) => {
       {/* File list */}
       {files.length > 0 && (
         <div className="file-uploader__details">
-          <div className="file-uploader__name-input-wrapper" style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-              과목 이름 지정 (선택사항)
-            </label>
-            <input 
-              type="text" 
-              className="file-uploader__name-input" 
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-input)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              placeholder={`${files[0].file.name.replace(/\.[^.]+$/, '')}`}
-              value={customSubjectName}
-              onChange={(e) => setCustomSubjectName(e.target.value)}
-              disabled={analyzing}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
-            />
-          </div>
+          {!presetSubjectId && (
+            <div className="file-uploader__name-input-wrapper" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                과목 이름 지정 (선택사항)
+              </label>
+              <input
+                type="text"
+                className="file-uploader__name-input"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                placeholder={`${files[0].file.name.replace(/\.[^.]+$/, '')}`}
+                value={customSubjectName}
+                onChange={(e) => setCustomSubjectName(e.target.value)}
+                disabled={analyzing}
+                onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+              />
+            </div>
+          )}
 
           <div className="file-uploader__list">
             <p className="file-uploader__list-title">업로드된 파일 ({files.length})</p>

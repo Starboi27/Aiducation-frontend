@@ -35,7 +35,7 @@ const QuizPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { subjectId, topicId } = useParams();
-  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex, setUser, addWrongAnswer, loadWrongAnswers } = useApp();
+  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex, setUser, addWrongAnswer, loadWrongAnswers, addNotification } = useApp();
 
   const location = useLocation();
   const _params = new URLSearchParams(location.search);
@@ -236,9 +236,22 @@ const QuizPage = () => {
 
       totalExp = submitResponse?.expGained ?? 0;
 
-      // currentExp로 AppContext user.totalExp 업데이트
-      if (submitResponse?.currentExp != null) {
-        setUser(prev => ({ ...prev, totalExp: submitResponse.currentExp }));
+      // currentExp, currentLevel로 AppContext user 업데이트
+      if (submitResponse?.currentExp != null || submitResponse?.currentLevel != null) {
+        setUser(prev => ({
+          ...prev,
+          ...(submitResponse.currentExp != null && { totalExp: submitResponse.currentExp }),
+          ...(submitResponse.currentLevel != null && { level: submitResponse.currentLevel }),
+        }));
+      }
+
+      // 레벨업 알림
+      if (submitResponse?.levelUp) {
+        addNotification({
+          type: 'success',
+          title: `레벨 업! 🎉`,
+          message: `Lv. ${submitResponse.currentLevel} 달성! 계속 성장하고 있어요.`,
+        });
       }
 
     } catch (e) {

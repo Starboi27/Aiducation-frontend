@@ -142,15 +142,25 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
     return mockAnalyzeDocument(file, onProgress);
   }
 
-  // Step 1: 파일 업로드 → fileId 응답 저장
+  // Step 1: 업로드 전 기존 concept 수 확인 (폴링 기준점)
   onProgress?.({ step: 'reading', status: 'active', progress: 0 });
+  const existingData = await apiClient.get(`/api/v1/subjects/${subjectId}/concepts`);
+  const existingConcepts =
+    existingData?.concepts ??
+    existingData?.subjects ??
+    (Array.isArray(existingData) ? existingData : []);
+  const existingCount = existingConcepts.length;
+  console.log(`[업로드 전] 기존 concept 수: ${existingCount}`);
+
+  // Step 2: 파일 업로드 → fileId 응답 저장
   const formData = new FormData();
   formData.append('file', file);
   const uploadRes = await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
   const fileId = uploadRes?.fileId ?? null;
   onProgress?.({ step: 'analyzing', status: 'active', progress: 33 });
 
-  // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 40회 × 3초 = 2분)
+  // Step 3: AI 콜백 완료를 폴링으로 확인 (최대 40회 × 3초 = 2분)
+  // 기존 count보다 늘어날 때까지 대기 — 기존 concept 오탐 방지
   const MAX_ATTEMPTS = 40;
   const INTERVAL_MS = 3000;
 
@@ -164,12 +174,12 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
       data?.subjects ??
       (Array.isArray(data) ? data : []);
 
-    console.log(`[폴링 ${i + 1}/${MAX_ATTEMPTS}] 응답:`, data, '→ concepts:', concepts);
+    console.log(`[폴링 ${i + 1}/${MAX_ATTEMPTS}] 기존: ${existingCount} → 현재: ${concepts.length}`, concepts);
 
     const progress = 40 + Math.min(50, Math.floor((i / MAX_ATTEMPTS) * 50));
     onProgress?.({ step: 'categorizing', status: 'active', progress });
 
-    if (concepts.length > 0) {
+    if (concepts.length > existingCount) {
       onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
       return {
         id: subjectId,

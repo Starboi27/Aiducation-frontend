@@ -213,9 +213,16 @@ export const subjectService = {
     return enriched;
   },
 
-  /** 과목 생성 → Subject */
-  createSubject(subjectName) {
-    return isMockEnabled() ? mockCreateSubject(subjectName) : realCreateSubject(subjectName);
+  /** 과목 생성 → Subject (응답에 subjectId 없을 경우 목록 재조회로 보완) */
+  async createSubject(subjectName) {
+    if (isMockEnabled()) return mockCreateSubject(subjectName);
+    const created = await realCreateSubject(subjectName);
+    if (created?.subjectId != null) return created;
+    // Swagger 스펙대로 응답이 { subjectName }만 올 경우 목록에서 ID 탐색
+    const list = await realGetSubjects();
+    const subjects = list?.subjects ?? (Array.isArray(list) ? list : []);
+    const found = subjects.find(s => s.subjectName === subjectName);
+    return found ?? { ...created, subjectName };
   },
 
   /** 과목명 수정 → Subject */

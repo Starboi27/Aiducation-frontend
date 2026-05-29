@@ -87,17 +87,17 @@ const SubjectManager = ({ subjects, onAddSubject, onDeleteSubject,
     setManualName('');
     setShowManualForm(false);
     try {
-      // 서버에 과목 생성 후 서버 ID를 AppContext에 반영
+      // 서버에 과목 생성 후 파일 업로드 플로우로 이동
       const created = await subjectService.createSubject(name);
-      const subj = onAddSubject({
-        id: created.subjectId,
+      onAddSubject({
+        id: String(created.subjectId),
         name: created.subjectName ?? name,
         source: 'manual',
         topics: [],
       });
-      setExpandedId(subj?.id ?? created.subjectId ?? null);
+      navigate('/upload', { state: { subjectId: String(created.subjectId), subjectName: created.subjectName ?? name } });
     } catch {
-      // API 실패 시 로컬 ID로 폴백
+      // API 실패 시 로컬 ID로 폴백 (파일 업로드 없이 과목만 추가)
       const subj = onAddSubject({ name, source: 'manual', topics: [] });
       setExpandedId(subj?.id ?? null);
     }
