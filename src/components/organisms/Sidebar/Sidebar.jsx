@@ -73,7 +73,7 @@ const Sidebar = () => {
 
       {/* User Info */}
       {!collapsed && (
-        <div className="sidebar__user">
+        <div className="sidebar__user" onClick={() => navigate('/')}>
           <Avatar name={user.name} size="md" level={user.level} />
           <div className="sidebar__user-info">
             <p className="sidebar__user-name">{user.name}</p>

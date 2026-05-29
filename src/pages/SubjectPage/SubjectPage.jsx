@@ -17,11 +17,25 @@ const SubjectPage = () => {
   const { subjects, addSubject, deleteSubject, addTopicToSubject, deleteTopicFromSubject, mergeTopicsInSubject, updateSubject } = useApp();
   const [showManualForm, setShowManualForm] = useState(false);
 
-  const handleDeleteSubject = (id) => {
-    deleteSubject(id);
-    // 로컬 생성 ID(subj_xxx)는 서버에 없으므로 숫자 ID일 때만 API 호출
+  const handleDeleteSubject = async (id) => {
+    const subject = subjects.find(s => String(s.id) === String(id));
+    deleteSubject(id); // 낙관적 UI 업데이트
     if (!isNaN(Number(id))) {
-      subjectService.deleteSubject(id).catch(() => {});
+      try {
+        // 1단계: 파일 목록 조회 후 모든 파일 삭제 (백엔드 제약: 파일 먼저 삭제 필요)
+        const res = await subjectService.getFiles(id);
+        const files = res?.files ?? res?.data ?? (Array.isArray(res) ? res : []);
+        for (const file of files) {
+          const fid = file?.fileId ?? file?.id;
+          if (fid) {
+            await subjectService.deleteFile(fid);
+          }
+        }
+        // 2단계: 파일 모두 삭제 후 과목 삭제
+        await subjectService.deleteSubject(id);
+      } catch (err) {
+        console.error("과목 삭제 중 오류:", err);
+      }
     }
   };
 

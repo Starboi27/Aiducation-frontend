@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, Timer, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronRight, Timer, AlertTriangle, Lightbulb } from 'lucide-react';
 import { Button, Badge, ProgressBar } from '../../atoms';
 import { QuizOption } from '../../molecules';
 import { useApp } from '../../../context/AppContext';
@@ -9,7 +9,7 @@ import './QuizEngine.css';
 const DIFFICULTY_LABELS = { 1: '매우 쉬움', 2: '쉬움', 3: '보통', 4: '어려움', 5: '매우 어려움' };
 const DIFFICULTY_COLORS = { 1: 'success', 2: 'info', 3: 'warning', 4: 'danger', 5: 'accent' };
 
-const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => {
+const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incorrectsMap = {} }) => {
   const [currentIdx, setCurrentIdx] = useState(() => {
     const saved = localStorage.getItem(`quizProgress_${quizId}`);
     if (saved) {
@@ -26,10 +26,7 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // currentIdx 가드와 동일 조건 — 길이가 다른 이전 세션 결과는 버림
-        if (parsed.currentIdx < questions.length) {
-          return parsed.results || [];
-        }
+        if (parsed.currentIdx < questions.length) return parsed.results || [];
       } catch (e) { console.error('Failed to parse saved results', e); }
     }
     return [];
@@ -37,41 +34,43 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
 
   const [selected, setSelected] = useState(null);
   const [answered, setAnswered] = useState(false);
+  const [correct, setCorrect] = useState(null); // null | true | false
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerActive, setTimerActive] = useState(true);
-  const { addExp, addWrongAnswer } = useApp();
+  const [expGained, setExpGained] = useState(0);
 
-  // 문제별 서버에서 가져온 정답 인덱스 캐시: { [questionId]: 0-based correctIndex }
-  const [fetchedAnswers, setFetchedAnswers] = useState({});
+  // 힌트 상태
+  const [hint, setHint] = useState(null);
+  const [isHintLoading, setIsHintLoading] = useState(false);
+
+  const latestResults = useRef([]);
+  const autoNextTimer = useRef(null);
+  const hasAnsweredRef = useRef(false);
+  // refs: timer 클로저 안에서 최신 값을 읽기 위함
+  const isLastRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  const { addExp, addWrongAnswer, wrongAnswers } = useApp();
 
   const current = questions[currentIdx];
   const isLast = currentIdx === questions.length - 1;
   const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
-  // 현재 문제의 실제 정답 인덱스 (서버 fetch 값 우선, 없으면 question 원본값)
-  const effectiveCorrectIndex = current
-    ? (fetchedAnswers[current.id] ?? current.correctIndex)
-    : null;
+  const options = React.useMemo(() => {
+    if (!current) return [];
+    if (current.options && current.options.length > 0) return current.options;
+    if (current.examples && current.examples.length > 0) return current.examples;
+    return ['선택지 A', '선택지 B', '선택지 C', '선택지 D', '선택지 E'];
+  }, [current]);
 
-  // 문제가 바뀔 때마다 서버에서 정답 사전 fetch
+  // refs 최신화
+  useEffect(() => { isLastRef.current = isLast; }, [isLast]);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  // results 상태와 latestResults.current 동기화 (상태 복원 및 누적 일관성 보장)
   useEffect(() => {
-    if (!current) return;
-    const id = current.id;
-
-    // 이미 정답 있으면 스킵
-    if (fetchedAnswers[id] != null) return;
-    // 백엔드 정수 ID가 아니면 스킵 (mock 퀴즈의 'q_...' 형식 등)
-    if (!id || isNaN(Number(id))) return;
-
-    aiService.getExplanation(id)
-      .then((data) => {
-        const ans = data?.answer ?? data?.correctAnswer ?? data?.correct_answer;
-        if (ans != null) {
-          setFetchedAnswers(prev => ({ ...prev, [id]: Number(ans) }));
-        }
-      })
-      .catch(() => {});
-  }, [currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+    latestResults.current = results;
+  }, [results]);
 
   // 진행 상태 저장
   useEffect(() => {
@@ -83,94 +82,99 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
     }
   }, [currentIdx, results, quizId]);
 
-  // Timer
+  // 문제 바뀔 때 상태 초기화
+  useEffect(() => {
+    clearTimeout(autoNextTimer.current);
+    setTimeLeft(30);
+    setTimerActive(true);
+    setSelected(null);
+    setAnswered(false);
+    setCorrect(null);
+    setExpGained(0);
+    setHint(null);
+    setIsHintLoading(false);
+    hasAnsweredRef.current = false;
+  }, [currentIdx]);
+
+  // 타이머 — 타임오버 시 직접 처리 (stale closure 방지)
   useEffect(() => {
     if (!timerActive || answered || !current) return;
     if (timeLeft <= 0) {
-      handleAnswer(null);
+      if (hasAnsweredRef.current) return;
+      hasAnsweredRef.current = true;
+
+      // 타임오버: 아무 것도 선택하지 않은 상태로 간주하고 바로 다음 이동
+      setTimerActive(false);
+
+      const timeoutResult = {
+        questionId: current.id,
+        difficulty: current.difficulty,
+        timeUsed: 30,
+        selectedAnswer: null,
+      };
+      
+      const newResults = [...latestResults.current, timeoutResult];
+      setResults(newResults);
+      latestResults.current = newResults;
+
+      // 지연 없이 바로 다음 문제로 넘김
+      if (isLastRef.current) {
+        localStorage.removeItem(`quizProgress_${quizId}`);
+        onCompleteRef.current?.(latestResults.current);
+      } else {
+        hasAnsweredRef.current = false;
+        setCurrentIdx(i => i + 1);
+      }
       return;
     }
     const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [timeLeft, timerActive, answered, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 문제 바뀔 때 상태 초기화
-  useEffect(() => {
-    setTimeLeft(30);
-    setTimerActive(true);
-    setSelected(null);
-    setAnswered(false);
-  }, [currentIdx]);
+  // 버튼 클릭: 답 선택 후 바로 다음 문제로 이동 (일괄 채점 방식)
+  const handleNext = async () => {
+    if (hasAnsweredRef.current) return;
+    hasAnsweredRef.current = true;
 
-  // 타이머 만료 시에만 호출 — 선택지 클릭은 setSelected만 함
-  const handleAnswer = (optionIdx) => {
-    if (answered) return;
     setTimerActive(false);
-    setSelected(optionIdx);
-    setAnswered(true);
-
-    // 시간 초과는 항상 오답
-    addWrongAnswer({
-      ...current,
-      correctIndex: effectiveCorrectIndex,
-      userAnswer: '(시간 초과)',
-    });
-
-    setResults(prev => [...prev, {
-      questionId: current.id,
-      correct: false,
-      expGained: 0,
-      difficulty: current.difficulty,
-      timeUsed: 30,
-      selectedAnswer: 0,
-    }]);
-  };
-
-  const handleNext = () => {
-    if (answered) {
-      // 타이머 만료 후 다음으로
-      if (isLast) {
-        localStorage.removeItem(`quizProgress_${quizId}`);
-        onComplete?.(results);
-      } else {
-        setCurrentIdx(i => i + 1);
-      }
-      return;
-    }
-
-    // 선택지 클릭 후 다음 버튼으로 정답 처리 + 이동
     const optionIdx = selected;
-    const correct = effectiveCorrectIndex != null && optionIdx !== null && optionIdx === effectiveCorrectIndex;
-    const expGained = correct ? calculateExp(current.difficulty, timeLeft) : 0;
-
-    setTimerActive(false);
-
-    if (correct) {
-      addExp(expGained);
-    } else {
-      addWrongAnswer({
-        ...current,
-        correctIndex: effectiveCorrectIndex,
-        userAnswer: optionIdx !== null ? current.options[optionIdx] : '(미선택)',
-      });
-    }
 
     const newResult = {
       questionId: current.id,
-      correct,
-      expGained,
       difficulty: current.difficulty,
       timeUsed: 30 - timeLeft,
-      selectedAnswer: optionIdx !== null ? optionIdx : 0,
+      selectedAnswer: optionIdx !== null ? optionIdx : -1,
     };
+    
     const newResults = [...results, newResult];
     setResults(newResults);
+    latestResults.current = newResults;
 
     if (isLast) {
       localStorage.removeItem(`quizProgress_${quizId}`);
-      onComplete?.(newResults);
+      onComplete?.(latestResults.current);
     } else {
+      hasAnsweredRef.current = false;
       setCurrentIdx(i => i + 1);
+    }
+  };
+
+  const handleGetHint = async () => {
+    if (!current?.id || hint) return;
+    setIsHintLoading(true);
+    try {
+      // 힌트 대신 해설(explanation)을 불러와서 힌트로 보여줌
+      const data = await aiService.getExplanation(current.id);
+      setHint(data?.explanation || '제공된 힌트(해설)가 없습니다.');
+    } catch (err) {
+      const serverMsg = err.response?.data?.msg;
+      if (serverMsg) {
+        setHint(`😔 ${serverMsg}`);
+      } else {
+        setHint('힌트를 불러오는데 실패했습니다.');
+      }
+    } finally {
+      setIsHintLoading(false);
     }
   };
 
@@ -184,10 +188,18 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
   }
 
   const timerVariant = timeLeft > 15 ? 'success' : timeLeft > 8 ? 'warning' : 'danger';
+  const isTimeout = answered && selected === null && correct === false;
+  const resultClass = isTimeout
+    ? 'quiz-engine__result--timeout'
+    : correct === true
+      ? 'quiz-engine__result--correct'
+      : correct === false
+        ? 'quiz-engine__result--wrong'
+        : 'quiz-engine__result--unknown';
 
   return (
     <div className="quiz-engine">
-      {/* Header */}
+      {/* 헤더 */}
       <div className="quiz-engine__header">
         <div className="quiz-engine__progress-info">
           <span className="quiz-engine__counter">{currentIdx + 1} / {questions.length}</span>
@@ -203,60 +215,75 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete }) => 
         </div>
       </div>
 
-      <ProgressBar
-        value={currentIdx + (answered ? 1 : 0)}
-        max={questions.length}
-        variant="primary"
-        size="xs"
-      />
+      <ProgressBar value={currentIdx + (answered ? 1 : 0)} max={questions.length} variant="primary" size="xs" />
+      <ProgressBar value={timeLeft} max={30} variant={timerVariant} size="xs" animated={false} />
 
-      <ProgressBar
-        value={timeLeft}
-        max={30}
-        variant={timerVariant}
-        size="xs"
-        animated={false}
-      />
-
-      {/* Topic */}
       {current.topic && (
         <div className="quiz-engine__topic">
           <span className="quiz-engine__topic-badge">{current.topic}</span>
+          {!hint && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              icon={Lightbulb} 
+              onClick={handleGetHint} 
+              disabled={isHintLoading || answered}
+              style={{ marginLeft: 'auto', fontSize: '12px' }}
+            >
+              {isHintLoading ? '로딩 중...' : '힌트 보기'}
+            </Button>
+          )}
         </div>
       )}
 
-      {/* Question */}
+      {hint && (
+        <div className="quiz-engine__hint-box animate-fade-in" style={{
+          background: '#fffcf0',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start'
+        }}>
+          <Lightbulb size={20} color="#fdcb6e" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.5', color: '#574b29' }}>
+            <strong>💡 힌트:</strong> {hint}
+          </p>
+        </div>
+      )}
+
       <div className="quiz-engine__question">
         <p className="quiz-engine__question-text">{current.question}</p>
       </div>
 
-      {/* Options */}
       <div className="quiz-engine__options">
-        {current.options.map((opt, i) => (
+        {options.map((opt, i) => (
           <QuizOption
             key={i}
             label={OPTION_LABELS[i]}
             text={opt}
             selected={selected === i}
-            correct={answered && effectiveCorrectIndex != null && i === effectiveCorrectIndex}
-            wrong={answered && effectiveCorrectIndex != null && selected === i && i !== effectiveCorrectIndex}
-            disabled={answered}
-            onClick={() => !answered && setSelected(i)}
+            correct={false}
+            wrong={false}
+            disabled={false}
+            onClick={() => setSelected(i)}
           />
         ))}
       </div>
 
-      {/* 다음 버튼: 선택 전 비활성, 선택 후 활성 */}
+      {/* 다음 버튼 */}
       <div className="quiz-engine__feedback">
         <Button
           variant="primary"
           size="md"
           icon={ChevronRight}
           iconPosition="right"
-          disabled={!answered && selected === null}
+          disabled={selected === null}
           onClick={handleNext}
         >
-          {isLast ? '결과 보기' : '다음'}
+          {isLast ? '제출하기' : '다음 문제'}
         </Button>
       </div>
     </div>

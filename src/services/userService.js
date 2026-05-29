@@ -85,7 +85,7 @@ const MOCK_INCORRECTS = {
       conceptName: '메모리 관리',
       question: '다음 중 페이지 교체 알고리즘이 아닌 것은?',
       examples: ['FIFO', 'LRU', 'OPT', 'RR', 'LFU'],
-      correctAnswer: 4,
+      correctAnswer: 3,
       explanation: 'RR(Round Robin)은 CPU 스케줄링 알고리즘이며, 페이지 교체 알고리즘이 아닙니다.',
       difficulty: 2,
     },
@@ -94,7 +94,7 @@ const MOCK_INCORRECTS = {
       conceptName: 'SQL 기초',
       question: 'INNER JOIN과 OUTER JOIN의 차이점은?',
       examples: ['속도 차이', '조인 조건 유무', '매칭되지 않는 행 포함 여부', '테이블 수 제한', '인덱스 사용 여부'],
-      correctAnswer: 3,
+      correctAnswer: 2,
       explanation: 'OUTER JOIN은 한쪽 테이블에 매칭되는 데이터가 없어도 결과에 포함시킵니다.',
       difficulty: 3,
     },
@@ -161,6 +161,11 @@ async function mockUpdateAlarmSettings(settings) {
   return { ...MOCK_ALARM_SETTINGS };
 }
 
+async function mockCheckStudyStreak() {
+  await sleep(USER_CONFIG.mockDelayMs);
+  return { streak: 6, maxStreak: 12, newlyAchieved: true };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MOCK IMPLEMENTATIONS (profile, password, delete)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,6 +206,7 @@ function realGetMe() {
 const realGetDashboard  = ()         => apiClient.get('/api/v1/users/me/dashboard');
 const realGetRanking    = (page = 0) => apiClient.get(`/api/v1/ranking?page=${page}`);
 const realGetIncorrects = ()         => apiClient.get('/api/v1/users/me/incorrects');
+const realCheckStudyStreak = ()      => apiClient.post('/api/v1/users/me/study-streak');
 
 const realGetStudySettings    = ()         => apiClient.get('/api/v1/users/me/settings');
 const realUpdateStudySettings = (settings) => apiClient.patch('/api/v1/users/me/settings', settings);
@@ -220,6 +226,11 @@ export const userService = {
   /** 내 정보 조회 → Me */
   getMe() {
     return isMockEnabled() ? mockGetMe() : realGetMe();
+  },
+
+  /** 연속 학습일(Streak) 갱신 및 확인 */
+  checkStudyStreak() {
+    return isMockEnabled() ? mockCheckStudyStreak() : realCheckStudyStreak();
   },
 
   /** 대시보드 통계 조회 → Dashboard */

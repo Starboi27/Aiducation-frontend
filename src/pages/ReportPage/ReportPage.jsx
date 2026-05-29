@@ -105,6 +105,31 @@ const ReportPage = () => {
     { label: '누적 오답 발견', value: `${incorrectData?.totalCount ?? 0}문제`, icon: BookOpen, color: '#ff7675' },
   ];
 
+  // 4. 동적 피드백 생성 로직
+  const currentStreak = user?.streak || 0;
+  
+  let accuracyTitle = '';
+  let accuracyFeedback = '';
+  if (accuracyPct >= 80) {
+    accuracyTitle = '기본기가 매우 탄탄한 우등생!';
+    accuracyFeedback = `현재 회원님은 종합 정답률 ${displayAccuracy}라는 훌륭한 성과를 기록 중입니다! 기본기가 매우 탄탄하게 잡혀있습니다.`;
+  } else if (accuracyPct >= 50) {
+    accuracyTitle = '안정적인 학습 페이스!';
+    accuracyFeedback = `종합 정답률 ${displayAccuracy}로 안정적인 학습 페이스를 보이고 있습니다. 여기서 약점만 조금 더 보완하면 최상위권 도약이 충분히 가능합니다.`;
+  } else {
+    accuracyTitle = '도약의 발판을 마련하는 중!';
+    accuracyFeedback = `종합 정답률 ${displayAccuracy}를 기록 중입니다. 아직 학습 초기 단계이거나 기초를 다져가는 과정입니다. 틀린 문제의 해설을 꼼꼼히 읽어보는 것이 가장 빠른 지름길입니다!`;
+  }
+
+  let streakFeedback = '';
+  if (currentStreak >= 3) {
+    streakFeedback = `무엇보다 최근 연속 ${currentStreak}일째 꾸준히 학습하며 좋은 폼을 유지하고 계신 끈기가 가장 큰 무기입니다!`;
+  } else if (currentStreak >= 1) {
+    streakFeedback = `최근 ${currentStreak}일 동안 집중해서 학습을 이어가고 있습니다. 이 기세를 몰아 매일 접속하는 습관을 만들어보세요!`;
+  } else {
+    streakFeedback = `본격적으로 폼을 끌어올릴 준비를 마쳤습니다! 오늘을 기점으로 매일 퀴즈를 풀며 '연속 학습일' 기록을 쌓아가는 것을 첫 번째 목표로 삼아보세요.`;
+  }
+
   return (
     <div className="report-page animate-fade-in">
       <header className="page-header">
@@ -207,21 +232,23 @@ const ReportPage = () => {
       {/* ── 3. 나의 강점 및 동기부여 (채찍엔 당근 구역) ── */}
       {wrongAnswers.length > 0 && (
         <div className="report-strength animate-fade-in" style={{ animationDelay: '0.3s', marginTop: 'var(--spacing-xl)' }}>
-          <Card title="🌟 AI가 발견한 나의 학습 강점" subtitle="다른 파트에 비해 오답률이 현저히 낮고 성과가 탁월한 분석 결과입니다." variant="glass">
+          <Card title="🌟 데이터 기반 학습 진단" subtitle="최근 학습 기록과 성과를 바탕으로 AI가 분석한 리포트입니다." variant="glass">
             <div className="strength-content">
               <div className="strength-icon-wrap">
                 <Award size={40} color="var(--color-gold)" />
               </div>
               <div className="strength-text">
                 <strong className="strength-title">
-                  {hasPlayedQuiz 
-                    ? `학습 페이스가 매우 좋습니다! (상위 ${Math.max(1, 100 - user.accuracy)}% 궤도 진입)` 
-                    : '기본기가 매우 탄탄한 예비 우등생! (앞으로의 성장이 기대됩니다)'}
+                  {hasPlayedQuiz ? accuracyTitle : '데이터가 쌓일수록 더 정확한 진단이 가능합니다!'}
                 </strong>
-                <p className="strength-desc">
-                  현재 회원님은 <b>종합 정답률 {displayAccuracy}</b>라는 훌륭한 성과를 기록 중입니다. 
-                  무엇보다 최근 연속 <b>{user?.streak || 0}일째</b> 꾸준히 학습하며 좋은 폼을 유지하고 계신 것이 가장 큰 무기입니다! 
-                  지금처럼 기초를 탄탄하게 다진 상태에서, 가장 치명적 약점으로 분석된 <b>'{topTopics[0]?.topicName || '핵심 개념'}'</b>만 집중적으로 보완하신다면 실력이 비약적으로 상승할 것입니다.
+                <p className="strength-desc" style={{ marginBottom: '8px' }}>
+                  {hasPlayedQuiz && accuracyFeedback}
+                </p>
+                <p className="strength-desc" style={{ marginBottom: '8px' }}>
+                  {hasPlayedQuiz && streakFeedback}
+                </p>
+                <p className="strength-desc" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                  현재 상태에서 가장 취약한 개념으로 분석된 <b>'{topTopics[0]?.topicName || '핵심 개념'}'</b> 파트만 집중적으로 복습하신다면, 실력이 비약적으로 상승할 것입니다.
                 </p>
               </div>
             </div>

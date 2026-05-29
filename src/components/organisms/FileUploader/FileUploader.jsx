@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, File, X, CheckCircle, AlertCircle, Brain } from 'lucide-react';
-import { Button, Badge } from '../../atoms';
+import { Button, Badge, ProgressBar } from '../../atoms';
 import { useApp } from '../../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { aiService } from '../../../services/aiService';
@@ -198,12 +198,13 @@ const FileUploader = ({ onAnalysisComplete }) => {
                       {progressInfo.step === 'categorizing' && '주제 분류 중...'}
                       ({progressInfo.progress}%)
                     </div>
-                    <div className="file-uploader__item-progress-bar-container">
-                      <div 
-                        className="file-uploader__item-progress-bar" 
-                        style={{ width: `${progressInfo.progress}%` }}
-                      />
-                    </div>
+                    <ProgressBar
+                      value={progressInfo.progress}
+                      max={100}
+                      variant="primary"
+                      size="md"
+                      animated={true}
+                    />
                   </div>
                 )}
               </div>

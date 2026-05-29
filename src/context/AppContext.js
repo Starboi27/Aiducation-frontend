@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { getRank } from "../components/molecules/ExpCard/ExpCard";
 import { authService } from "../services/authService";
 import { aiService } from "../services/aiService";
+import { subjectService } from "../services/subjectService";
+import { userService } from "../services/userService";
 
 const AppContext = createContext();
 
@@ -76,40 +78,69 @@ export const AppProvider = ({ children }) => {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "review",
-      title: "복습 알림",
-      message: "오답 노트에 3개의 문항이 복습을 기다리고 있습니다.",
-      time: "10분 전",
-      read: false,
-    },
-    {
-      id: 2,
-      type: "streak",
-      title: "스트릭 보상",
-      message: "5일 연속 학습 달성! +500 XP가 지급되었습니다.",
-      time: "1시간 전",
-      read: false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   const [wrongAnswers, setWrongAnswers] = useState([]);
   const [isWrongAnswersLoading, setIsWrongAnswersLoading] = useState(false);
 
   useEffect(() => {
+    if (isInitializing) return;
+
     if (user) {
       setIsWrongAnswersLoading(true);
       aiService.getIncorrects()
         .then((list) => setWrongAnswers(list))
         .catch((err) => console.error("오답 노트를 불러오는 데 실패했습니다:", err))
         .finally(() => setIsWrongAnswersLoading(false));
+
+      subjectService.getSubjects()
+        .then((list) => {
+          setSubjects(prev => {
+            const deletedIds = (() => {
+              try { return new Set(JSON.parse(localStorage.getItem('deleted_subjects') ?? '[]')); }
+              catch { return new Set(); }
+            })();
+            const prevMap = Object.fromEntries(prev.map(s => [String(s.id), s]));
+            return list.filter(s => !deletedIds.has(String(s.id))).map(s => {
+              const prevSubj = prevMap[String(s.id)];
+              return {
+                ...s,
+                fileId: s.fileId ?? prevSubj?.fileId ?? null,
+                topics: s.topics.map(t => {
+                  const prevTopic = prevSubj?.topics?.find(pt => String(pt.id) === String(t.id));
+                  return {
+                    ...t,
+                    quizCount: t.quizCount > 0 ? t.quizCount : (prevTopic?.quizCount ?? t.quizCount ?? 0)
+                  };
+                })
+              };
+            });
+          });
+        })
+        .catch((err) => console.error("과목 목록을 불러오는 데 실패했습니다:", err));
+
+      userService.getDashboard()
+        .then((data) => {
+          if (data?.recentNotifications) {
+            const mapped = data.recentNotifications.map((n, idx) => ({
+              id: n.id ?? `notif_${idx}_${new Date(n.createdAt).getTime()}`,
+              type: n.type?.toLowerCase() ?? 'info',
+              title: n.type === 'REVIEW' ? '복습 알림' : n.type === 'CONCEPT' ? '과목 알림' : '알림',
+              message: n.message,
+              time: n.createdAt ? new Date(n.createdAt).toLocaleString('ko-KR') : '방금 전',
+              read: n.read ?? false,
+            }));
+            setNotifications(mapped);
+          }
+        })
+        .catch((err) => console.error("대시보드 알림 조회를 실패했습니다:", err));
     } else {
       setWrongAnswers([]);
       setIsWrongAnswersLoading(false);
+      setSubjects([]);
+      setNotifications([]);
     }
-  }, [user]);
+  }, [user?.id, isInitializing]);
 
   // ── Subjects (과목) 상태 ──────────────────────────────────────
   // subject: { id, name, source: 'manual'|'auto', createdAt, topics: [{id, name, quizCount, color}] }
@@ -170,6 +201,11 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteSubject = (id) => {
+    try {
+      const deleted = new Set(JSON.parse(localStorage.getItem('deleted_subjects') ?? '[]'));
+      deleted.add(String(id));
+      localStorage.setItem('deleted_subjects', JSON.stringify([...deleted]));
+    } catch {}
     setSubjects((prev) => prev.filter((s) => String(s.id) !== String(id)));
   };
 
@@ -209,6 +245,15 @@ export const AppProvider = ({ children }) => {
       })
     );
   };
+
+  const loadWrongAnswers = useCallback(async () => {
+    try {
+      const list = await aiService.getIncorrects();
+      setWrongAnswers(list);
+    } catch (err) {
+      console.error('오답 목록 갱신 실패:', err);
+    }
+  }, []);
 
   const deleteTopicFromSubject = (subjectId, topicId) => {
     setSubjects((prev) =>
@@ -317,23 +362,19 @@ export const AppProvider = ({ children }) => {
 
   const addWrongAnswer = (q) => {
     setWrongAnswers((prev) => {
-      // 이미 같은 문제가 있으면 wrongCount만 증가
+      // 이미 같은 문제가 있으면 wrongCount만 증가하고 맨 앞으로 이동
       const existing = prev.find((w) => w.id === q.id);
       if (existing) {
-        return prev.map((w) =>
-          w.id === q.id
-            ? {
-                ...w,
-                wrongCount: (w.wrongCount || 1) + 1,
-                lastAttemptAt: new Date().toISOString(),
-                isMastered: false,
-              }
-            : w,
-        );
+        const updated = {
+          ...existing,
+          wrongCount: (existing.wrongCount || 1) + 1,
+          lastAttemptAt: new Date().toISOString(),
+          isMastered: false,
+        };
+        return [updated, ...prev.filter((w) => w.id !== q.id)];
       }
-      // 새 오답 추가 - QuizReview.md 스펙 필드 포함
+      // 새 오답 추가 - 맨 앞으로 추가 (최신순)
       return [
-        ...prev,
         {
           ...q,
           wrongCount: 1,
@@ -342,6 +383,7 @@ export const AppProvider = ({ children }) => {
           aiExplanation: null, // aiService.analyzeWrongAnswer() 호출 후 채워짐
           isMastered: false,
         },
+        ...prev,
       ];
     });
     setUser((prev) => {
@@ -452,6 +494,7 @@ export const AppProvider = ({ children }) => {
         mergeTopicsInSubject,
         getSubjectById,
         setTopicQuestions,
+        loadWrongAnswers,
         masterWrongAnswer,
         updateWrongAnswerExplanation,
         updateWrongAnswerCorrectIndex,

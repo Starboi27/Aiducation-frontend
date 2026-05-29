@@ -151,7 +151,7 @@ async function mockGetConcepts(subjectId) {
 const realGetSubjects    = ()                       => apiClient.get('/api/v1/subjects');
 const realCreateSubject  = (subjectName)            => apiClient.post('/api/v1/subjects', { subjectName });
 const realUpdateSubject  = (subjectId, newName)     => apiClient.patch(`/api/v1/subjects/${subjectId}`, { newName });
-const realDeleteSubject  = (subjectId)              => apiClient.delete(`/api/v1/subjects/${subjectId}`, { silent401: true });
+const realDeleteSubject  = (subjectId)              => apiClient.delete(`/api/v1/subjects/${subjectId}`);
 
 const realGetFiles       = (subjectId)              => apiClient.get(`/api/v1/subjects/${subjectId}/files`);
 const realDeleteFile     = (fileId)                 => apiClient.delete(`/api/v1/files/${fileId}`);
@@ -171,8 +171,46 @@ const isMockEnabled = () => SUBJECT_CONFIG.useMock;
 
 export const subjectService = {
   /** 과목 목록 조회 → Subject[] */
-  getSubjects() {
-    return isMockEnabled() ? mockGetSubjects() : realGetSubjects();
+  async getSubjects() {
+    if (isMockEnabled()) {
+      return mockGetSubjects();
+    }
+    const data = await realGetSubjects();
+    const list = data?.subjects ?? (Array.isArray(data) ? data : []);
+
+    const enriched = await Promise.all(
+      list.map(async (item) => {
+        let conceptData = [];
+        try {
+          const res = await realGetConcepts(item.subjectId);
+          conceptData = res?.concepts ?? res?.subjects ?? (Array.isArray(res) ? res : []);
+        } catch (e) {
+          console.error(`[subjectService] 과목 ${item.subjectId}의 개념 목록 조회 실패:`, e);
+        }
+
+        const TOPIC_COLORS = [
+          '#6C5CE7', '#00cec9', '#fd79a8', '#fdcb6e',
+          '#00b894', '#e17055', '#0984e3', '#a29bfe',
+        ];
+
+        return {
+          id: String(item.subjectId),
+          name: item.subjectName,
+          fileCount: item.fileCount ?? 0,
+          conceptCount: item.conceptCount ?? 0,
+          createdAt: item.createdAt,
+          topics: conceptData.map((c, idx) => ({
+            id: String(c.conceptId ?? c.id),
+            name: c.conceptName ?? c.name ?? '',
+            description: c.description ?? '',
+            quizCount: c.quizCount ?? 0,
+            color: TOPIC_COLORS[idx % TOPIC_COLORS.length],
+            questions: [],
+          })),
+        };
+      })
+    );
+    return enriched;
   },
 
   /** 과목 생성 → Subject */

@@ -35,17 +35,21 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
   // 원본 options 확정
   const rawOptions = useMemo(() => {
     if (question.options && question.options.length > 0) return question.options;
+    if (question.examples && question.examples.length > 0) return question.examples;
     const fakes = ['선택지 가', '선택지 나', '선택지 다', '선택지 라', '선택지 마'];
     return fakes;
-  }, [question.options]);
+  }, [question.options, question.examples]);
 
-  // correctIndex: question prop이 업데이트되면 반영
+  // correctIndex: question prop이 업데이트되면 반영 (0-based index인 correctAnswer를 사용)
   const rawCorrectIndex = useMemo(() => {
     if (question.correctIndex != null && typeof question.correctIndex === 'number') {
       return question.correctIndex;
     }
+    if (question.correctAnswer != null) {
+      return Number(question.correctAnswer);
+    }
     return -1;
-  }, [question.correctIndex]);
+  }, [question.correctIndex, question.correctAnswer]);
 
   // incorrects API에서 이미 explanation 포함 — 없는 경우만 별도 조회
   const [fetchedExplanation, setFetchedExplanation] = useState('');
@@ -78,31 +82,25 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
 
-  // 초기 셔플 (마운트 시 1회)
-  const [shuffledOptions, setShuffledOptions] = useState(
-    () => shuffleWithCorrect(rawOptions, rawCorrectIndex).shuffledOptions
-  );
-  const [correctIndex, setCorrectIndex] = useState(
-    () => shuffleWithCorrect(rawOptions, rawCorrectIndex).newCorrectIndex
-  );
+  const [shuffledOptions, setShuffledOptions] = useState([]);
 
-  // rawCorrectIndex가 늦게 업데이트되면 셔플된 배열에서 올바른 위치로 sync
+  // rawOptions 또는 rawCorrectIndex가 업데이트되거나 뒤늦게 로드될 때 셔플 상태를 재동기화합니다.
   useEffect(() => {
-    if (rawCorrectIndex < 0) return;
-    const correctText = rawOptions[rawCorrectIndex];
-    const newCI = shuffledOptions.findIndex(o => o === correctText);
-    if (newCI >= 0) setCorrectIndex(newCI);
-  }, [rawCorrectIndex, rawOptions, shuffledOptions]);
+    const { shuffledOptions: newOpts } =
+      shuffleWithCorrect(rawOptions, rawCorrectIndex);
+    setShuffledOptions(newOpts);
+  }, [rawOptions, rawCorrectIndex]);
 
-  // 풀이 상태 (step 제거 — 제출 즉시 정답+해설 공개)
+  // 풀이 상태 (제출 즉시 정답+해설 공개)
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [answered,      setAnswered]      = useState(false);
   const [isCorrect,     setIsCorrect]     = useState(false);
 
-  const noAnswer = correctIndex < 0;
   const displayExplanation = question.explanation || fetchedExplanation;
-  // 셔플된 선택지 기준으로 정답 텍스트 표시
-  const correctAnswerText = correctIndex >= 0 ? shuffledOptions[correctIndex] : null;
+  // 원본 리스트에서 정답 텍스트 도출
+  const correctAnswerText = (rawCorrectIndex >= 0 && rawOptions[rawCorrectIndex])
+    ? rawOptions[rawCorrectIndex]
+    : null;
 
   // ── 보기 선택 ───────────────────────────────────────────────────────────
   const handleSelect = (idx) => {
@@ -113,17 +111,18 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
   // ── 제출: 맞든 틀리든 즉시 정답+해설 공개 ──────────────────────────────
   const handleSubmit = () => {
     if (selectedIndex === null || answered) return;
-    const correct = !noAnswer && selectedIndex === correctIndex;
+    const selectedText = shuffledOptions[selectedIndex];
+    const originalSelectedIdx = rawOptions.indexOf(selectedText);
+    const correct = rawCorrectIndex !== null && rawCorrectIndex >= 0 && originalSelectedIdx === rawCorrectIndex;
     setAnswered(true);
     setIsCorrect(correct);
   };
 
   // ── 다시 시도: 선택지 셔플 후 재도전 ────────────────────────────────────
   const handleRetry = () => {
-    const { shuffledOptions: newOpts, newCorrectIndex: newCI } =
+    const { shuffledOptions: newOpts } =
       shuffleWithCorrect(rawOptions, rawCorrectIndex);
     setShuffledOptions(newOpts);
-    setCorrectIndex(newCI);
     setSelectedIndex(null);
     setAnswered(false);
     setIsCorrect(false);
@@ -167,8 +166,8 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
             label={LABELS[idx] || String(idx + 1)}
             text={opt}
             selected={selectedIndex === idx && !answered}
-            correct={answered && idx === correctIndex}
-            wrong={answered && selectedIndex === idx && idx !== correctIndex}
+            correct={answered && opt === correctAnswerText}
+            wrong={answered && selectedIndex === idx && opt !== correctAnswerText}
             disabled={answered}
             onClick={() => handleSelect(idx)}
           />
@@ -271,6 +270,22 @@ const ReviewPage = () => {
             explanation: sa.explanation || local?.explanation || '',
           };
         });
+
+        // 최신순 정렬 (wrongDate / lastAttemptAt / ID 역순)
+        enriched.sort((a, b) => {
+          const dateA = a.wrongDate || a.lastAttemptAt || '';
+          const dateB = b.wrongDate || b.lastAttemptAt || '';
+          if (dateA && dateB) {
+            return new Date(dateB) - new Date(dateA);
+          }
+          const idA = isNaN(Number(a.id)) ? a.id : Number(a.id);
+          const idB = isNaN(Number(b.id)) ? b.id : Number(b.id);
+          if (typeof idA === 'number' && typeof idB === 'number') {
+            return idB - idA;
+          }
+          return String(idB).localeCompare(String(idA));
+        });
+
         setServerAnswers(enriched);
       })
       .catch((err) => {

@@ -35,7 +35,7 @@ const QuizPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { subjectId, topicId } = useParams();
-  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex, setUser } = useApp();
+  const { getSubjectById, topicQuestions, setTopicQuestions, submitQuizResult, updateWrongAnswerCorrectIndex, setUser, addWrongAnswer, loadWrongAnswers } = useApp();
 
   const location = useLocation();
   const _params = new URLSearchParams(location.search);
@@ -45,6 +45,8 @@ const QuizPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [finalExp, setFinalExp] = useState(0);
+  // 퀴즈 생성 직후 incorrects에서 quizId→correctAnswer 맵 구성
+  const [incorrectsMap, setIncorrectsMap] = useState({});
 
   // subject / topic 정보 조회
   const subject = subjectId ? getSubjectById(subjectId) : null;
@@ -106,14 +108,17 @@ const QuizPage = () => {
             const cached = allTopics.flatMap(t =>
               (tqCache[t.id] || []).map(q => ({ ...q, subjectId: subj.id, subjectName: subj.name }))
             );
+            await loadWrongAnswers();
             setQuestions(cached.length > 0 ? cached : MOCK_QUESTIONS);
           } else {
             // 난이도/문제 수 지정 퀴즈: 토픽별 균등 생성
             const limitPerTopic = Math.ceil(count / allTopics.length);
             const promises = allTopics.map(async (t) => {
               let questionsOfTopic = [];
-              if (tqCache[t.id]) {
-                questionsOfTopic = tqCache[t.id].slice(0, limitPerTopic);
+              const cachedOfTopic = tqCache[t.id];
+              // 캐시된 난이도와 요청 난이도가 일치하는 경우에만 캐시 사용
+              if (cachedOfTopic && cachedOfTopic.every(q => Number(q.difficulty) === Number(difficulty))) {
+                questionsOfTopic = cachedOfTopic.slice(0, limitPerTopic);
               } else {
                 const generated = await aiService.generateQuiz(t.name, subj.name, {
                   count: limitPerTopic,
@@ -128,6 +133,7 @@ const QuizPage = () => {
               return questionsOfTopic.slice(0, limitPerTopic);
             });
             const results = await Promise.all(promises);
+            await loadWrongAnswers();
             setQuestions(results.flat().slice(0, count));
           }
 
@@ -139,8 +145,10 @@ const QuizPage = () => {
             return;
           }
 
-          if (tqCache[currentTopic.id]) {
-            setQuestions(tqCache[currentTopic.id].slice(0, count));
+          const cachedOfTopic = tqCache[currentTopic.id];
+          if (cachedOfTopic && cachedOfTopic.every(q => Number(q.difficulty) === Number(difficulty))) {
+            await loadWrongAnswers();
+            setQuestions(cachedOfTopic.slice(0, count));
             setLoading(false);
             return;
           }
@@ -152,7 +160,9 @@ const QuizPage = () => {
           });
           const enhanced = generated.map(q => ({
             ...q, subjectId: subj.id, subjectName: subj.name
-          }));
+          })).slice(0, count);
+          localStorage.removeItem(`quizProgress_${subjectId}_${topicId}`);
+          await loadWrongAnswers();
           setTQ(currentTopic.id, enhanced);
           setQuestions(enhanced);
         }
@@ -173,25 +183,53 @@ const QuizPage = () => {
     setSubmitting(true);
     const answers = res.map(r => ({
       quizId: r.questionId,
-      answer: r.selectedAnswer ?? 0,
+      answer: r.selectedAnswer ?? -1,
     }));
+
+    console.log("=== [Quiz Grading Debug] ===");
+    console.log("Live Submission Answers sent to backend:", answers);
 
     let finalRes = res;
     let totalExp = 0;
     try {
       const submitResponse = await aiService.submitAll(answers);
+      console.log("Backend response received:", submitResponse);
 
       if (submitResponse?.results?.length) {
         finalRes = res.map((r, i) => {
-          const srv = submitResponse.results.find(s => String(s.quizId) === String(r.questionId))
+          const srv = submitResponse.results.find(s => s && String(s.quizId) === String(r.questionId))
             ?? submitResponse.results[i];
-          return srv ? { ...r, correct: srv.correct, expGained: srv.expGained ?? r.expGained } : r;
+          
+          console.log(`Matching mapping result for question ${r.questionId}:`, {
+            r_id: r.questionId,
+            r_selectedAnswer: r.selectedAnswer,
+            srv_quizId: srv?.quizId,
+            srv_correctAnswer: srv?.correctAnswer,
+            srv_correct: srv?.correct,
+            final_correct_eval: (srv?.correct || r.correct)
+          });
+
+          return srv ? { ...r, correct: srv.correct || r.correct, expGained: srv.expGained ?? r.expGained } : r;
         });
 
         submitResponse.results.forEach((srv) => {
+          if (!srv) return;
           const correctAns = srv.correctAnswer ?? srv.answer ?? srv.correct_answer;
           if (correctAns != null) {
             updateWrongAnswerCorrectIndex(String(srv.quizId), Number(correctAns));
+          }
+
+          // [오답 실시간 동기화] 서버에서 오답(false) 판정이 난 문항은 즉시 로컬 전역 오답 캐시에 밀어넣어 동기화합니다.
+          if (srv.correct === false) {
+            const matchedQuestion = res.find(r => String(r.questionId) === String(srv.quizId));
+            const questionData = questions?.find(q => String(q.id) === String(srv.quizId));
+            if (questionData) {
+              addWrongAnswer({
+                ...questionData,
+                correctIndex: correctAns != null ? Number(correctAns) : null,
+                userAnswer: matchedQuestion && matchedQuestion.selectedAnswer !== -1 ? (questionData.options?.[matchedQuestion.selectedAnswer] ?? questionData.examples?.[matchedQuestion.selectedAnswer]) : '(미선택)'
+              });
+            }
           }
         });
       }
@@ -298,7 +336,8 @@ const QuizPage = () => {
         <QuizEngine 
           questions={questions} 
           quizId={subjectId && topicId ? `${subjectId}_${topicId}` : 'fallback_quiz'} 
-          onComplete={handleComplete} 
+          onComplete={handleComplete}
+          incorrectsMap={incorrectsMap}
         />
       ) : (
         <div className="quiz-page__error">

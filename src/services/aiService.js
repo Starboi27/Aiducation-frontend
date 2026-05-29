@@ -142,11 +142,12 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
     return mockAnalyzeDocument(file, onProgress);
   }
 
-  // Step 1: 파일 업로드 → 백엔드가 AI 서버에 분석 요청 후 즉시 200 반환
+  // Step 1: 파일 업로드 → fileId 응답 저장
   onProgress?.({ step: 'reading', status: 'active', progress: 0 });
   const formData = new FormData();
   formData.append('file', file);
-  await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
+  const uploadRes = await apiClient.postForm(`/api/v1/subjects/${subjectId}/files`, formData);
+  const fileId = uploadRes?.fileId ?? null;
   onProgress?.({ step: 'analyzing', status: 'active', progress: 33 });
 
   // Step 2: AI 콜백 완료를 폴링으로 확인 (최대 40회 × 3초 = 2분)
@@ -172,6 +173,7 @@ async function realAnalyzeDocument(file, onProgress, options = {}) {
       onProgress?.({ step: 'categorizing', status: 'done', progress: 100 });
       return {
         id: subjectId,
+        fileId: fileId,           // 삭제 시 사용할 실제 fileId
         subjectName: file.name.replace(/\.[^.]+$/, ''),
         fileName: file.name,
         source: 'auto',
@@ -202,6 +204,11 @@ async function realGenerateQuiz(topicName, subjectName, options) {
     return mockGenerateQuiz(topicName, subjectName, options);
   }
 
+
+  // POST 전에 기존 퀴즈 ID 목록 저장 (사전 필터링)
+  const existingData = await apiClient.get(`/api/v1/concepts/${conceptId}/quizzes`);
+  const existingIds = (existingData.quizzes ?? existingData.questions ?? []).map(q => q.quizId);
+
   await apiClient.post(`/api/v1/concepts/${conceptId}/generate-quiz`, {
     count: options.count ?? AI_CONFIG.defaultQuizCount,
     difficulty: options.difficulty ?? 3,
@@ -214,18 +221,18 @@ async function realGenerateQuiz(topicName, subjectName, options) {
     const data = await apiClient.get(`/api/v1/concepts/${conceptId}/quizzes`);
     const quizzes = data.questions ?? data.quizzes ?? (Array.isArray(data) ? data : null);
     if (Array.isArray(quizzes) && quizzes.length > 0) {
-      const requestedCount = options.count ?? AI_CONFIG.defaultQuizCount;
-      // 최신 생성분(가장 뒤)에서 count개만 사용
-      const sliced = quizzes.slice(-requestedCount);
-      return sliced.map((q, idx) => ({
+      // 기존 ID에 없는 것만 골라냄 (이번에 새로 생성된 퀴즈)
+      const newQuizzes = quizzes
+        .filter(q => !existingIds.includes(q.quizId))
+        .slice(0, options.count ?? AI_CONFIG.defaultQuizCount);
+      if (newQuizzes.length === 0) continue;
+      return newQuizzes.map((q, idx) => ({
         id: q.quizId ?? q.id ?? `q_${Date.now()}_${idx}`,
         topic: topicName,
         difficulty: q.difficulty ?? options.difficulty ?? 3,
         question: q.question,
-        // 백엔드 필드명: examples (options 아님)
         options: q.examples ?? q.options ?? [],
-        // 백엔드 answer는 0-based, 프론트 correctIndex와 동일
-        correctIndex: q.answer != null ? q.answer : null,
+        correctIndex: q.correctAnswer != null ? Number(q.correctAnswer) : q.answer != null ? Number(q.answer) : null,
         explanation: q.explanation ?? '',
       }));
     }
@@ -473,20 +480,26 @@ export const aiService = {
    * @returns {Promise<{ explanation?: string, answer?: number, correctAnswer?: number }>}
    */
   getExplanation(quizId) {
-    if (AI_CONFIG.useMock) {
+    if (AI_CONFIG.useMock || isNaN(Number(quizId))) {
+      // mock 문제는 correctIndex가 이미 있으므로 explanation만 반환
       return Promise.resolve({
         explanation: `[Mock 해설] 퀴즈 ${quizId}번 문제에 대한 자세한 해설입니다.`,
-        answer: Math.floor(Math.random() * 5) + 1,
-      });
-    }
-    if (isNaN(Number(quizId))) {
-      return Promise.resolve({
-        explanation: `[Mock 해설] 퀴즈 ${quizId}번 문제에 대한 자세한 해설입니다.`,
-        answer: Math.floor(Math.random() * 5) + 1,
       });
     }
     // 401 시 로그아웃 없이 에러만 throw (silent401)
     return apiClient.get(`/api/v1/quizzes/${quizId}/explanation`, { silent401: true });
+  },
+
+  /**
+   * 퀴즈 단건 제출 → 서버에 답 기록
+   * POST /api/v1/quizzes/{quizId}/submit
+   * answer는 1-based (1~5)
+   */
+  async submitAnswer(quizId, answerIdx) {
+    if (AI_CONFIG.useMock || isNaN(Number(quizId))) return {};
+    return apiClient.post(`/api/v1/quizzes/${quizId}/submit`, {
+      answer: answerIdx,
+    }, { silent401: true });
   },
 
   /**
@@ -513,7 +526,7 @@ export const aiService = {
       id: String(item.quizId),
       question: item.question,
       options: item.examples ?? [],
-      correctIndex: item.correctAnswer != null ? item.correctAnswer : -1,
+      correctIndex: item.correctAnswer != null ? Number(item.correctAnswer) : -1,
       explanation: item.explanation ?? '',
       difficulty: item.difficulty ?? 3,
       topic: item.conceptName ?? '기본 카테고리',
