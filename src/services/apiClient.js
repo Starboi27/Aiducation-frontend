@@ -160,7 +160,14 @@ async function request(method, path, options = {}) {
     throw new Error(err.message ?? `HTTP ${res.status}: ${res.statusText}`);
   }
 
-  return res.json();
+  // 200 OK 이지만 body가 비어있거나 plain text인 경우 파싱 에러 방지
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return text;
+  }
 }
 
 export const apiClient = {

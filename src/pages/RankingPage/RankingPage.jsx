@@ -17,9 +17,10 @@ const RankingPage = () => {
       try {
         setIsLoading(true);
         const data = await userService.getRanking();
+        
         const mapped = (data.rankings || []).map(item => ({
           id: item.userId,
-          name: item.userId,
+          name: item.name || item.userName || item.userId.split('@')[0],
           level: item.level,
           totalExp: item.totalExp,
         }));
@@ -40,7 +41,7 @@ const RankingPage = () => {
       <header className="page-header">
         <h1 className="page-title">글로벌 랭킹 보드</h1>
         <p className="page-desc">
-          학습량, 정답률, 연속 학습일을 종합하여 산정된 실시간 랭킹입니다.
+          학습량(XP)과 레벨을 바탕으로 산정된 실시간 글로벌 랭킹입니다.
         </p>
       </header>
 

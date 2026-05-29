@@ -27,12 +27,6 @@ const RankingTable = ({ users = [], currentUserId }) => {
           등급
         </span>
         <span className="ranking-table__col ranking-table__col--xp">XP</span>
-        <span className="ranking-table__col ranking-table__col--streak">
-          스트릭
-        </span>
-        <span className="ranking-table__col ranking-table__col--accuracy">
-          정확도
-        </span>
       </div>
 
       <div className="ranking-table__body">
@@ -90,20 +84,6 @@ const RankingTable = ({ users = [], currentUserId }) => {
                   variant="gold"
                   size="xs"
                 />
-              </div>
-
-              <div className="ranking-table__col ranking-table__col--streak">
-                {user.streak != null
-                  ? <span className="ranking-table__streak">🔥 {user.streak}일</span>
-                  : <span className="ranking-table__na">-</span>}
-              </div>
-
-              <div className="ranking-table__col ranking-table__col--accuracy">
-                {user.accuracy != null
-                  ? <span className="ranking-table__accuracy" style={{ color: user.accuracy >= 80 ? "var(--color-success)" : user.accuracy >= 60 ? "var(--color-gold)" : "#ff7675" }}>
-                      {user.accuracy}%
-                    </span>
-                  : <span className="ranking-table__na">-</span>}
               </div>
             </div>
           );
