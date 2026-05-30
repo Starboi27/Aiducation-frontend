@@ -181,10 +181,10 @@ const QuizPage = () => {
 
   const handleComplete = useCallback(async (res) => {
     setSubmitting(true);
-    const answers = res.map(r => ({
-      quizId: r.questionId,
-      answer: r.selectedAnswer ?? -1,
-    }));
+    // 실시간 단건 제출로 이미 채점된 문항은 중복 제출 제외
+    const answers = res
+      .filter(r => !r._preSubmitted)
+      .map(r => ({ quizId: r.questionId, answer: r.selectedAnswer ?? -1 }));
 
     console.log("=== [Quiz Grading Debug] ===");
     console.log("Live Submission Answers sent to backend:", answers);
@@ -209,7 +209,7 @@ const QuizPage = () => {
             final_correct_eval: (srv?.correct || r.correct)
           });
 
-          return srv ? { ...r, correct: srv.correct || r.correct, expGained: srv.expGained ?? r.expGained } : r;
+          return srv ? { ...r, correct: srv.correct ?? r.correct, expGained: srv.expGained ?? r.expGained } : r;
         });
 
         submitResponse.results.forEach((srv) => {
@@ -234,7 +234,10 @@ const QuizPage = () => {
         });
       }
 
-      totalExp = submitResponse?.expGained ?? 0;
+      const preSubmittedExp = res
+        .filter(r => r._preSubmitted)
+        .reduce((sum, r) => sum + (r._preSubmittedExp ?? 0), 0);
+      totalExp = (submitResponse?.expGained ?? 0) + preSubmittedExp;
 
       // currentExp, currentLevel로 AppContext user 업데이트
       if (submitResponse?.currentExp != null || submitResponse?.currentLevel != null) {
@@ -256,6 +259,8 @@ const QuizPage = () => {
 
     } catch (e) {
       console.warn('submitAll 실패 — 로컬 정답 판정 사용:', e.message);
+      // catch 시에도 pre-submitted XP 반영
+      totalExp = res.filter(r => r._preSubmitted).reduce((sum, r) => sum + (r._preSubmittedExp ?? 0), 0);
     }
 
     const correctCount = finalRes.filter(r => r.correct).length;

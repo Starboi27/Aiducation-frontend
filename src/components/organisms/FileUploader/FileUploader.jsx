@@ -14,9 +14,14 @@ const TOPIC_COLORS = [
   '#00b894', '#e17055', '#0984e3', '#a29bfe',
 ];
 
-const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjectName = null }) => {
+const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjectName = null, preloadedFile = null }) => {
   const [dragOver, setDragOver] = useState(false);
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState(() => {
+    if (!preloadedFile) return [];
+    const ext = '.' + preloadedFile.name.split('.').pop().toLowerCase();
+    if (!SUPPORTED_TYPES.includes(ext) || preloadedFile.size > MAX_SIZE_MB * 1024 * 1024) return [];
+    return [{ file: preloadedFile, id: Math.random().toString(36).slice(2), status: 'ready' }];
+  });
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [progressInfo, setProgressInfo] = useState({ step: '', progress: 0 });

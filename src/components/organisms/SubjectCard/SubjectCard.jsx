@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  ChevronRight, Trash2, Brain, Layers, Edit2
+  ChevronRight, Trash2, Brain, Layers, Edit2, Upload
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../atoms';
 import { TopicRow } from '../../molecules';
 import './SubjectCard.css';
@@ -34,7 +35,12 @@ const SubjectCard = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(subject.name);
 
-  // 드래그 앤 드롭 상태
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  // 빈 상태 업로드 존 드래그
+  const [uploadZoneDragOver, setUploadZoneDragOver] = useState(false);
+
+  // 드래그 앤 드롭 상태 (토픽 병합용)
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [merging, setMerging] = useState(false);
@@ -175,9 +181,33 @@ const SubjectCard = ({
       {isExpanded && (
         <div className="subject-card__body animate-fade-in">
           {subject.topics.length === 0 ? (
-            <p className="subject-card__no-topics">
-              아직 주제가 없습니다. 주제를 추가하거나 파일을 업로드해보세요.
-            </p>
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt,.docx,.md,.pptx"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) navigate('/upload', { state: { subjectId: subject.id, subjectName: subject.name, preloadedFile: file } });
+                }}
+              />
+              <div
+                className={`subject-card__upload-zone ${uploadZoneDragOver ? 'subject-card__upload-zone--drag' : ''}`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setUploadZoneDragOver(true); }}
+                onDragLeave={() => setUploadZoneDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setUploadZoneDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) navigate('/upload', { state: { subjectId: subject.id, subjectName: subject.name, preloadedFile: file } });
+                }}
+              >
+                <Upload size={20} />
+                <span>{uploadZoneDragOver ? '여기에 놓으세요!' : '파일을 드래그하거나 클릭하여 업로드'}</span>
+              </div>
+            </>
           ) : (
             <div className="subject-card__topics">
               {merging && <p className="subject-card__merge-hint">병합 중…</p>}

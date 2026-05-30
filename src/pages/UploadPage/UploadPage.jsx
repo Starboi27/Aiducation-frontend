@@ -9,6 +9,7 @@ const UploadPage = () => {
   const location = useLocation();
   const presetSubjectId = location.state?.subjectId ?? null;
   const presetSubjectName = location.state?.subjectName ?? null;
+  const preloadedFile = location.state?.preloadedFile ?? null;
 
   const handleAnalysisComplete = (results) => {
     navigate('/quiz', { state: { questionsList: results } });
@@ -31,6 +32,7 @@ const UploadPage = () => {
             onAnalysisComplete={handleAnalysisComplete}
             presetSubjectId={presetSubjectId}
             presetSubjectName={presetSubjectName}
+            preloadedFile={preloadedFile}
           />
         </Card>
       </div>
