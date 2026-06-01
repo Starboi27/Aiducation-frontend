@@ -149,13 +149,7 @@ const ReviewCard = ({ question, onMastered, onNext, isLast }) => {
         <span className="review-step-label">{answered ? '해설 확인' : '다시 풀기'}</span>
       </div>
 
-      {/* ── 내 이전 답변 ───────────────────────────────────────────── */}
-      <div className="review-my-answer">
-        <span className="review-my-answer__label">내 이전 답변</span>
-        <span className="review-my-answer__text">{question.userAnswer || '(기록 없음)'}</span>
-      </div>
-
-      {/* ── 문제 ─────────────────────────────────────────────────────── */}
+{/* ── 문제 ─────────────────────────────────────────────────────── */}
       <h3 className="review-card__question">{question.question}</h3>
 
       {/* ── 선택지 ─────────────────────────────────────────────────── */}

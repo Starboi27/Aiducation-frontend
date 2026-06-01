@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Timer, AlertTriangle, Lightbulb, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { ChevronRight, Timer, AlertTriangle, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button, Badge, ProgressBar } from '../../atoms';
 import { QuizOption } from '../../molecules';
 import { useApp } from '../../../context/AppContext';
@@ -39,17 +39,14 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
   const [timerActive, setTimerActive] = useState(true);
   const [expGained, setExpGained] = useState(0);
   const [checkingAnswer, setCheckingAnswer] = useState(false); // 서버 단건 제출 로딩
+  const [serverExplanation, setServerExplanation] = useState(null);
 
   // 서버 실시간 제출로 받아온 정답 인덱스 캐시: { [quizId]: number }
   const serverCorrectIndexCache = useRef({});
   // 이미 단건 제출된 quizId → expGained 맵 (최종 submitAll 중복 제출 방지 + XP 합산용)
   const preSubmittedIds = useRef(new Map());
 
-  // 힌트 상태
-  const [hint, setHint] = useState(null);
-  const [isHintLoading, setIsHintLoading] = useState(false);
-
-  const latestResults = useRef([]);
+const latestResults = useRef([]);
   const autoNextTimer = useRef(null);
   const hasCheckedRef = useRef(false); // 정답 확인 중복 실행 방지
   const isLastRef = useRef(false);
@@ -107,8 +104,7 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
     setAnswered(false);
     setCorrect(null);
     setExpGained(0);
-    setHint(null);
-    setIsHintLoading(false);
+    setServerExplanation(null);
     hasCheckedRef.current = false;
   }, [currentIdx]);
 
@@ -143,6 +139,10 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
         const gained = calculateExp(current.difficulty, timeLeft);
         setExpGained(gained);
         addExp(gained);
+      } else {
+        aiService.getExplanation(current.id)
+          .then(data => { if (data?.explanation) setServerExplanation(data.explanation); })
+          .catch(() => {});
       }
       return;
     }
@@ -159,12 +159,18 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
           updateWrongAnswerCorrectIndex?.(String(current.id), serverIdx);
         }
         const isCorrect = srv.correct === true;
-        preSubmittedIds.current.set(String(current.id), srv.expGained ?? 0);
+        const earnedExp = res?.expGained ?? srv.expGained ?? 0;
+        preSubmittedIds.current.set(String(current.id), earnedExp);
         setAnswered(true);
         setCorrect(isCorrect);
-        if (isCorrect && srv.expGained) {
-          setExpGained(srv.expGained);
-          addExp(srv.expGained);
+        if (isCorrect) {
+          const gained = earnedExp || calculateExp(current.difficulty, timeLeft);
+          setExpGained(gained);
+          addExp(gained);
+        } else {
+          aiService.getExplanation(current.id)
+            .then(data => { if (data?.explanation) setServerExplanation(data.explanation); })
+            .catch(() => {});
         }
       } else {
         // 응답 파싱 실패 시 피드백 없이 넘김
@@ -205,23 +211,6 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
     }
   };
 
-  const handleGetHint = async () => {
-    if (!current?.id || hint) return;
-    setIsHintLoading(true);
-    try {
-      const data = await aiService.getExplanation(current.id);
-      setHint(data?.explanation || '제공된 힌트(해설)가 없습니다.');
-    } catch (err) {
-      const serverMsg = err.response?.data?.msg;
-      if (serverMsg) {
-        setHint(`😔 ${serverMsg}`);
-      } else {
-        setHint('힌트를 불러오는데 실패했습니다.');
-      }
-    } finally {
-      setIsHintLoading(false);
-    }
-  };
 
   if (!questions.length) {
     return (
@@ -244,7 +233,8 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
         ? 'quiz-engine__result--wrong'
         : 'quiz-engine__result--unknown';
 
-  const explanation = current.explanation || '';
+  const wrongAnswerExplanation = wrongAnswers.find(w => String(w.id) === String(current.id))?.explanation || '';
+  const explanation = serverExplanation || current.explanation || wrongAnswerExplanation;
 
   return (
     <div className="quiz-engine">
@@ -270,38 +260,9 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
       {current.topic && (
         <div className="quiz-engine__topic">
           <span className="quiz-engine__topic-badge">{current.topic}</span>
-          {!hint && !answered && (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Lightbulb}
-              onClick={handleGetHint}
-              disabled={isHintLoading}
-              style={{ marginLeft: 'auto', fontSize: '12px' }}
-            >
-              {isHintLoading ? '로딩 중...' : '힌트 보기'}
-            </Button>
-          )}
         </div>
       )}
 
-      {hint && (
-        <div className="quiz-engine__hint-box animate-fade-in" style={{
-          background: '#fffcf0',
-          border: '1px solid #ffeaa7',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '20px',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'flex-start'
-        }}>
-          <Lightbulb size={20} color="#fdcb6e" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.5', color: '#574b29' }}>
-            <strong>💡 힌트:</strong> {hint}
-          </p>
-        </div>
-      )}
 
       <div className="quiz-engine__question">
         <p className="quiz-engine__question-text">{current.question}</p>
@@ -330,16 +291,13 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
               {isTimeout ? (
                 <><Clock size={18} color="#fdcb6e" /> 시간 초과</>
               ) : correct === true ? (
-                <><CheckCircle2 size={18} color="#00b894" /> 정답이에요!</>
+                <><CheckCircle2 size={18} color="#00b894" /> 정답이에요!{expGained > 0 && <span className="quiz-engine__xp-text">+{expGained} XP</span>}</>
               ) : correct === false ? (
                 <><XCircle size={18} color="#ff7675" /> 오답이에요.</>
               ) : (
                 '확인 완료'
               )}
             </span>
-            {correct === true && expGained > 0 && (
-              <span className="quiz-engine__xp">+{expGained} XP</span>
-            )}
           </div>
 
           {/* 오답/타임오버 시 정답 표시 */}
@@ -351,7 +309,7 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
             </p>
           )}
 
-          {explanation && (
+          {(correct === false || isTimeout) && explanation && (
             <p className="quiz-engine__explanation">{explanation}</p>
           )}
         </div>
@@ -386,9 +344,10 @@ const QuizEngine = ({ questions = [], quizId = 'default_quiz', onComplete, incor
 };
 
 function calculateExp(difficulty, timeLeft) {
-  const base = difficulty * 20;
-  const speedBonus = Math.floor((timeLeft / 30) * difficulty * 10);
-  return base + speedBonus;
+  const d = difficulty || 1;
+  const base = d * 20;
+  const speedBonus = Math.floor((timeLeft / 30) * d * 10);
+  return Math.max(base + speedBonus, 10);
 }
 
 export default QuizEngine;

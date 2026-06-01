@@ -44,27 +44,6 @@
 }
 
 /* 내 이전 답변 */
-.review-my-answer {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-sm);
-  padding: 10px 14px;
-  border-radius: var(--border-radius-md);
-  background: rgba(214, 48, 49, 0.08);
-  border: 1px dashed rgba(214, 48, 49, 0.35);
-}
-.review-my-answer__label {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: #ff7675;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.review-my-answer__text {
-  font-size: var(--font-size-sm);
-  color: #ff7675;
-}
-
 /* 정답 표시 (3단계) */
 .review-answer-correct {
   display: flex;

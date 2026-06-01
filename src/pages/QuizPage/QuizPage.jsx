@@ -191,6 +191,20 @@ const QuizPage = () => {
 
     let finalRes = res;
     let totalExp = 0;
+
+    const preSubmittedExp = res
+      .filter(r => r._preSubmitted)
+      .reduce((sum, r) => sum + (r._preSubmittedExp ?? 0), 0);
+
+    // 제출할 미채점 문항이 없으면 서버 호출 없이 pre-submitted XP만 사용
+    if (answers.length === 0) {
+      setResults(res);
+      setFinalExp(preSubmittedExp);
+      setSubmitting(false);
+      setComplete(true);
+      return;
+    }
+
     try {
       const submitResponse = await aiService.submitAll(answers);
       console.log("Backend response received:", submitResponse);
@@ -234,9 +248,6 @@ const QuizPage = () => {
         });
       }
 
-      const preSubmittedExp = res
-        .filter(r => r._preSubmitted)
-        .reduce((sum, r) => sum + (r._preSubmittedExp ?? 0), 0);
       totalExp = (submitResponse?.expGained ?? 0) + preSubmittedExp;
 
       // currentExp, currentLevel로 AppContext user 업데이트
