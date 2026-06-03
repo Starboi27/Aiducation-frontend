@@ -121,6 +121,16 @@ export const AppProvider = ({ children }) => {
 
       userService.getDashboard()
         .then((data) => {
+          // 대시보드의 growthIndicator로 totalExp/level을 실제 서버 값과 동기화
+          const gi = data?.growthIndicator;
+          if (gi?.totalExp !== undefined) {
+            setUser(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev, totalExp: gi.totalExp, level: gi.level ?? prev.level };
+              try { localStorage.setItem('user_info', JSON.stringify(updated)); } catch {}
+              return updated;
+            });
+          }
           if (data?.recentNotifications) {
             const mapped = data.recentNotifications.map((n, idx) => ({
               id: n.id ?? `notif_${idx}_${new Date(n.createdAt).getTime()}`,

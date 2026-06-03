@@ -7,3 +7,4 @@ export { default as ExpCard, getRank } from './ExpCard/ExpCard';
 export { default as NotificationItem } from './NotificationItem/NotificationItem';
 export { default as TopicRow } from './TopicRow/TopicRow';
 export { default as DifficultyModal } from './DifficultyModal/DifficultyModal';
+export { default as AddFileModal } from './AddFileModal/AddFileModal';

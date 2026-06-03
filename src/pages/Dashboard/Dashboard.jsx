@@ -78,11 +78,26 @@ const Dashboard = () => {
     return val <= 1 ? Math.round(val * 100) : Math.round(val);
   };
 
+  // 0~100 범위의 유효한 비율인지 검증 (카운트 값이 잘못 들어오는 경우 방어)
+  const toRatePercent = (val, fallback = 0) => {
+    if (val === undefined || val === null) return fallback;
+    const pct = val <= 1 ? Math.round(val * 100) : Math.round(val);
+    return pct >= 0 && pct <= 100 ? pct : fallback;
+  };
+
+  // correctRate를 먼저 계산해서 weeklyRate 폴백으로 활용
+  const correctRateVal = toRatePercent(dashboardData?.correctRate ?? user.accuracy ?? 0);
+
   const stats = {
-    weeklyRate: toPercent(dashboardData?.weeklyStats?.thisWeekRate ?? (user.totalSolved ? user.accuracy : 0)),
-    changeRate: toPercent(dashboardData?.weeklyStats?.changeRate ?? 0),
+    weeklyRate: toRatePercent(
+      dashboardData?.weeklyStats?.thisWeekRate,
+      correctRateVal
+    ),
+    changeRate: dashboardData?.weeklyStats?.changeRate != null
+      ? toRatePercent(dashboardData.weeklyStats.changeRate)
+      : null,
     solvedCount: dashboardData?.solvedCount ?? user.totalSolved ?? 0,
-    correctRate: toPercent(dashboardData?.correctRate ?? user.accuracy ?? 0),
+    correctRate: correctRateVal,
     growth: dashboardData?.growthIndicator ?? {
       level: user.level ?? 1,
       exp: user.totalExp ?? 0,
@@ -109,8 +124,6 @@ const Dashboard = () => {
           icon={Target}
           label="이번주 정답률"
           value={`${stats.weeklyRate}%`}
-          delta={`${Math.abs(stats.changeRate)}%`}
-          deltaType={stats.changeRate >= 0 ? 'up' : 'down'}
           color="success"
           description="이번주 정답률 통계"
         />

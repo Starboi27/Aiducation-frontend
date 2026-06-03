@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../atoms';
-import { TopicRow } from '../../molecules';
+import { TopicRow, AddFileModal } from '../../molecules';
 import './SubjectCard.css';
 
 const TOPIC_COLORS = [
@@ -39,6 +39,9 @@ const SubjectCard = ({
   const fileInputRef = useRef(null);
   // 빈 상태 업로드 존 드래그
   const [uploadZoneDragOver, setUploadZoneDragOver] = useState(false);
+
+  // 파일 추가 모달
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // 드래그 앤 드롭 상태 (토픽 병합용)
   const [draggedId, setDraggedId] = useState(null);
@@ -87,6 +90,12 @@ const SubjectCard = ({
       className={`subject-card ${isExpanded ? 'subject-card--expanded' : ''}`}
       style={{ '--accent': accentColor }}
     >
+      <AddFileModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        subjectId={subject.id}
+        subjectName={subject.name}
+      />
       {/* ── 카드 헤더 */}
       <div className="subject-card__header" onClick={onToggle}>
         <div className="subject-card__header-left">
@@ -210,6 +219,13 @@ const SubjectCard = ({
             </>
           ) : (
             <div className="subject-card__topics">
+              <button
+                className="subject-card__add-file-btn"
+                onClick={() => setShowAddModal(true)}
+              >
+                <Upload size={14} />
+                파일 추가
+              </button>
               {merging && <p className="subject-card__merge-hint">병합 중…</p>}
               {subject.topics.map((topic) => {
                 const canDrag = isServerTopic(topic.id);

@@ -184,14 +184,14 @@ function mapLoginResponse(data) {
     email: data.userId,
     role: data.role?.toLowerCase(),
     level: data.level ?? 1,
-    totalExp: 0,
-    totalSolved: 0,
-    correctCount: 0,
-    streak: 0,
-    maxStreak: 0,
-    accuracy: 0,
-    wrongCount: 0,
-    unreadNotifications: 0,
+    totalExp: data.totalExp ?? data.exp ?? 0,
+    totalSolved: data.totalSolved ?? 0,
+    correctCount: data.correctCount ?? 0,
+    streak: data.streak ?? 0,
+    maxStreak: data.maxStreak ?? 0,
+    accuracy: data.accuracy ?? 0,
+    wrongCount: data.wrongCount ?? 0,
+    unreadNotifications: data.unreadNotifications ?? 0,
   };
   localStorage.setItem("user_info", JSON.stringify(user));
   if (data.refreshToken) {

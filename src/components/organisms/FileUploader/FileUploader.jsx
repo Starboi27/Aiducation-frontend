@@ -14,7 +14,7 @@ const TOPIC_COLORS = [
   '#00b894', '#e17055', '#0984e3', '#a29bfe',
 ];
 
-const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjectName = null, preloadedFile = null }) => {
+const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjectName = null, preloadedFile = null, onComplete = null }) => {
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState(() => {
     if (!preloadedFile) return [];
@@ -101,9 +101,13 @@ const FileUploader = ({ onAnalysisComplete, presetSubjectId = null, presetSubjec
       });
 
       if (presetSubjectId) {
-        // 기존 과목에 토픽 업데이트 후 과목 페이지로 이동
+        // 기존 과목에 토픽 업데이트 (전체 concept 목록으로 교체)
         updateSubject(presetSubjectId, { topics: newSubject.topics ?? [] });
-        navigate('/subjects');
+        if (onComplete) {
+          onComplete(newSubject.topics ?? []);
+        } else {
+          navigate('/subjects');
+        }
       } else {
         // 신규 과목: SubjectPage로 이동하며 pending subject 전달
         navigate('/subjects', { state: { newSubject } });

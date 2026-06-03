@@ -306,3 +306,26 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
 }
+
+/* 파일 추가 버튼 */
+.subject-card__add-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-bottom: var(--spacing-sm);
+  background: transparent;
+  border: 1px dashed rgba(108, 92, 231, 0.45);
+  border-radius: 8px;
+  color: #6C5CE7;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  justify-content: center;
+}
+.subject-card__add-file-btn:hover {
+  background: rgba(108, 92, 231, 0.08);
+  border-color: #6C5CE7;
+}
